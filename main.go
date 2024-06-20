@@ -38,7 +38,10 @@ var (
 	activeSensors    = make(map[string]Sensor) // Active sensors table
 	Console          = container.NewVBox()
 	ConsoleScroller  = container.NewVScroll(Console)
+	WeatherDataDisp  = container.NewVBox()
+	WeatherScroller  = container.NewVScroll(WeatherDataDisp)
 	statusContainer  *fyne.Container
+	buttonContainer  *fyne.Container
 )
 
 /**********************************************************************************
@@ -47,6 +50,7 @@ var (
 
 var messageHandler1 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	//log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+	DisplayData(fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic()))
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
 		log.Fatalf("Unable to unmarshal JSON due to %s", err)
@@ -61,13 +65,13 @@ var messageHandler1 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 		sens := outgoing.GetSensorFromData() // Create Sensor record
 		availableSensors[skey] = sens        // Add it to the available sensors
 		log.Println(sens.FormatSensor(1))    // Log comma-separated line
-
 	}
 
 }
 
 var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	//log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+	DisplayData(fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic()))
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
 		log.Fatalf("Unable to unmarshal JSON due to %s", err)
@@ -253,6 +257,8 @@ func main() {
 	w.SetMainMenu(menu)
 	menu.Refresh()
 
+	//*************************************************
+	// Buttons & Containers
 	exitButton := widget.NewButton("Exit", func() {
 		SetStatus("Exiting dashboard")
 		log.Println("User halted program. Normal exit.")
@@ -270,14 +276,32 @@ func main() {
 		SetStatus("*****************************")
 	})
 
+	dataDisplay := widget.NewButton("Data", func() {
+		dataWindow := a.NewWindow("Weather Data From Sensors")
+		//tempLabel := widget.NewLabel("TEST OF NEW WINDOW")
+		dataWindow.SetContent(WeatherScroller)
+		dataWindow.Show()
+	})
+
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
+	WeatherScroller.SetMinSize(fyne.NewSize(700, 500))
+
+	buttonContainer = container.NewHBox(
+		displaySensors,
+		dataDisplay,
+		exitButton,
+	)
 
 	statusContainer = container.NewVBox(
-		displaySensors,
-		exitButton,
 		ConsoleScroller,
 	)
-	w.SetContent(statusContainer)
+
+	mainContainer := container.NewVBox(
+		buttonContainer,
+		statusContainer,
+	)
+
+	w.SetContent(mainContainer)
 
 	UpdateAll()
 
@@ -306,6 +330,25 @@ func ConsoleWrite(text string) {
 		ConsoleScroller.ScrollToBottom()
 	}
 	Console.Refresh()
+}
+
+func DisplayData(text string) {
+	WeatherDataDisp.Add(&canvas.Text{
+		Text:      text,
+		Color:     color.Black,
+		TextSize:  12,
+		TextStyle: fyne.TextStyle{Monospace: true},
+	})
+
+	if len(WeatherDataDisp.Objects) > 100 {
+		WeatherDataDisp.Remove(WeatherDataDisp.Objects[0])
+	}
+	delta := (WeatherDataDisp.Size().Height - WeatherScroller.Size().Height) - WeatherScroller.Offset.Y
+
+	if delta < 100 {
+		WeatherScroller.ScrollToBottom()
+	}
+	WeatherDataDisp.Refresh()
 }
 
 func UpdateAll() {
