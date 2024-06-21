@@ -6,7 +6,6 @@ import (
 	"image/color"
 	"log"
 	"os"
-	"os/signal"
 	"strconv"
 
 	"fyne.io/fyne/v2"
@@ -29,19 +28,23 @@ var (
 	opts            = mqtt.NewClientOptions()
 	datafile *os.File
 	// bufdatafile *bufio.Writer
-	nbytes           int
-	err              error
-	status           string
-	incoming         WeatherDataRaw
-	outgoing         WeatherData
-	availableSensors = make(map[string]Sensor) // Available sensors table, no dups allowed
-	activeSensors    = make(map[string]Sensor) // Active sensors table
-	Console          = container.NewVBox()
-	ConsoleScroller  = container.NewVScroll(Console)
-	WeatherDataDisp  = container.NewVBox()
-	WeatherScroller  = container.NewVScroll(WeatherDataDisp)
-	statusContainer  *fyne.Container
-	buttonContainer  *fyne.Container
+	nbytes          int
+	err             error
+	status          string
+	incoming        WeatherDataRaw
+	outgoing        WeatherData
+	visibleSensors  = make(map[string]Sensor) // Visible sensors table, no dups allowed
+	activeSensors   = make(map[string]Sensor) // Active sensors table
+	Console         = container.NewVBox()
+	ConsoleScroller = container.NewVScroll(Console)
+	WeatherDataDisp = container.NewVBox()
+	WeatherScroller = container.NewVScroll(WeatherDataDisp)
+	SensorDisplay   = container.NewVBox()
+	SensorScroller  = container.NewVScroll(SensorDisplay)
+	statusContainer *fyne.Container
+	buttonContainer *fyne.Container
+	sensorContainer *fyne.Container
+	sensorWindow    fyne.Window
 )
 
 /**********************************************************************************
@@ -59,15 +62,14 @@ var messageHandler1 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 	writeWeatherData(outgoing)
 	DisplayData(fmt.Sprintf("station: %s, time: %s, model: %s, id: %d, channel: %s, temp: %.1f, humidity: %.1f",
 		outgoing.Home, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel, outgoing.Temperature_F, outgoing.Humidity))
-	// Add sensor to avalableSensors table(map)
+	// Add sensor to visibleSensors table(map)
 	skey := outgoing.BuildSensorKey()
-	if _, ok := availableSensors[skey]; !ok {
+	if _, ok := visibleSensors[skey]; !ok {
 		// Sensor not in map. Add it.
 		sens := outgoing.GetSensorFromData() // Create Sensor record
-		availableSensors[skey] = sens        // Add it to the available sensors
-		// log.Println(sens.FormatSensor(1))    // Log comma-separated line
+		visibleSensors[skey] = sens          // Add it to the visible sensors
+		SetStatus(fmt.Sprintf("Added sensor: %s", skey))
 	}
-
 }
 
 var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
@@ -83,11 +85,11 @@ var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 		outgoing.Home, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel, outgoing.Temperature_F, outgoing.Humidity))
 	// Add sensor to avalableSensors table(map)
 	skey := outgoing.BuildSensorKey()
-	if _, ok := availableSensors[skey]; !ok {
+	if _, ok := visibleSensors[skey]; !ok {
 		// Sensor not in map. Add it.
 		sens := outgoing.GetSensorFromData() // Create Sensor record
-		availableSensors[skey] = sens        // Add it to the available sensors
-		// log.Println(sens.FormatSensor(1))    // Log comma-separated line
+		visibleSensors[skey] = sens          // Add it to the visible sensors
+		SetStatus(fmt.Sprintf("Added sensor: %s", skey))
 	}
 }
 
@@ -173,17 +175,6 @@ func buildSensorList(m map[string]Sensor) []string {
  *	Program Control
  **********************************************************************************/
 
-// Exit program successfully if Ctrl-C pressed
-func handleInterrupt(c chan os.Signal) {
-	for {
-		<-c
-		log.Println("User halted program. Normal exit.")
-		log.Println("Size of available sensors map = ", len(availableSensors))
-		log.Println(buildSensorList(availableSensors))
-		os.Exit(0)
-	}
-}
-
 func config() {
 	inidata, err := ini.Load("config.ini")
 	if err != nil {
@@ -199,56 +190,22 @@ func config() {
 }
 
 func main() {
-	// Read configuration file
-	config()
-	datafile, err = os.Create("./WeatherData.txt")
-	if err != nil {
-		log.Fatal("Unable to create/open output file.\n", err)
-		SetStatus(fmt.Sprintf("Unable to create/open output file.\n", err))
-		panic(err.Error)
-	}
-	defer datafile.Close()
-	datafile.Sync()
-	// bufdatafile = bufio.NewWriter(datafile)
-	// defer bufdatafile.Flush()
-
-	// Exit program on Ctrl-C.
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go handleInterrupt(c)
-	os.Setenv("FYNE_THEME", "light")
-
-	// fmt.Printf("Enter full path to weather broker %s: \n")
-	// fmt.Scanln(&broker)
-	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
-	opts.SetClientID(clientID)
-	opts.SetUsername(uid)
-	// fmt.Printf("Enter password to weather broker %s: \n", broker)
-	// fmt.Scanln(&pwd)
-	opts.SetPassword(pwd)
-	opts.OnConnect = connectHandler
-	opts.OnConnectionLost = connectLostHandler
-
-	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.Println("Error connecting. Closing program.")
-		panic(token.Error())
-	}
-
-	log.Println("Client connected to broker")
-	// SetStatus(fmt.Sprintln("Client connected to broker"))
-
+	//**********************************
 	// Set up Fyne window before trying to write to Status line!!!
+	//**********************************
 	a := app.NewWithID("github.com/cjr29/weatherdashboard")
 	w := a.NewWindow("Weather Dashboard")
 	w.Resize(fyne.NewSize(640, 460))
+	w.SetMaster()
+	os.Setenv("FYNE_THEME", "light")
 
+	//**********************************
 	// Menus
 	newSensorItem := fyne.NewMenuItem("New", func() { log.Println("New Sensor Menu Item") })
 	addSensorItem := fyne.NewMenuItem("Add Sensor", func() { log.Println("Add Sensor Menu Item") })
 	removeSensorItem := fyne.NewMenuItem("Remove Sensor", func() { log.Println("Remove Sensor Menu Item") })
-	availableSensorsItem := fyne.NewMenuItem("Available Sensors", func() { log.Println("Available Sensors Menu Item") })
-	sensorMenu := fyne.NewMenu("Sensors", newSensorItem, addSensorItem, removeSensorItem, availableSensorsItem)
+	visibleSensorsItem := fyne.NewMenuItem("Available Sensors", func() { log.Println("Available Sensors Menu Item") })
+	sensorMenu := fyne.NewMenu("Sensors", newSensorItem, addSensorItem, removeSensorItem, visibleSensorsItem)
 
 	internetSpeedItem := fyne.NewMenuItem("Internet Speed", func() { log.Println("Internet Speed by Station") })
 	stationStatusItem := fyne.NewMenuItem("Station Status", func() { log.Println("Station Status") })
@@ -261,6 +218,7 @@ func main() {
 
 	//*************************************************
 	// Buttons & Containers
+
 	exitButton := widget.NewButton("Exit", func() {
 		SetStatus("Exiting dashboard")
 		log.Println("User halted program. Normal exit.")
@@ -268,25 +226,25 @@ func main() {
 	})
 
 	displaySensors := widget.NewButton("Sensors", func() {
-		SetStatus("*****************************")
-		SetStatus(fmt.Sprintf("Number of Available Sensors = %d", len(availableSensors)))
-		for s := range availableSensors {
-			sens := availableSensors[s]
-			line := sens.FormatSensor(1)
-			SetStatus(line)
+		// Get displayable list of sensors
+		if sensorWindow == nil {
+			sensorWindow = a.NewWindow("Unique Visible Sensors")
+			sensorWindow.SetContent(SensorScroller)
+			//sensorWindow.Close()
 		}
-		SetStatus("*****************************")
+		DisplaySensors(visibleSensors)
+		sensorWindow.Show()
 	})
 
 	dataDisplay := widget.NewButton("Data", func() {
 		dataWindow := a.NewWindow("Weather Data From Sensors")
-		dataWindow.SetMainMenu(menu)
 		dataWindow.SetContent(WeatherScroller)
 		dataWindow.Show()
 	})
 
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
 	WeatherScroller.SetMinSize(fyne.NewSize(700, 500))
+	SensorScroller.SetMinSize(fyne.NewSize(550, 500))
 
 	buttonContainer = container.NewHBox(
 		displaySensors,
@@ -305,7 +263,47 @@ func main() {
 
 	w.SetContent(mainContainer)
 
-	UpdateAll()
+	//**********************************
+	// Read configuration file
+	//**********************************
+	config()
+
+	//**********************************
+	// Open data output file
+	//**********************************
+	datafile, err = os.Create("./WeatherData.txt")
+	if err != nil {
+		log.Fatal("Unable to create/open output file.\n", err)
+		SetStatus(fmt.Sprintf("Unable to create/open output file.\n", err))
+		panic(err.Error)
+	}
+	defer datafile.Close()
+	datafile.Sync()
+
+	//**********************************
+	// Set configuration for MQTT
+	//**********************************
+	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
+	opts.SetClientID(clientID)
+	opts.SetUsername(uid)
+	opts.SetPassword(pwd)
+	opts.OnConnect = connectHandler
+	opts.OnConnectionLost = connectLostHandler
+
+	//**********************************
+	// Initialize MQTT client
+	//**********************************
+	client := mqtt.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		log.Println("Error connecting. Closing program.")
+		panic(token.Error())
+	}
+	log.Println("Client connected to broker")
+	//SetStatus(fmt.Sprintln("Client connected to broker"))
+
+	//**********************************
+	// Turn over control to the GUI
+	//**********************************
 
 	w.ShowAndRun()
 }
@@ -315,6 +313,7 @@ func SetStatus(s string) {
 	ConsoleWrite(status)
 }
 
+// ConsoleWrite - call this function to write a string to the scrolling console status window
 func ConsoleWrite(text string) {
 	Console.Add(&canvas.Text{
 		Text:      text,
@@ -334,6 +333,7 @@ func ConsoleWrite(text string) {
 	Console.Refresh()
 }
 
+// DisplayData - Call this function to display a weather data string in the weather display scrolling window
 func DisplayData(text string) {
 	WeatherDataDisp.Add(&canvas.Text{
 		Text:      text,
@@ -351,6 +351,37 @@ func DisplayData(text string) {
 		WeatherScroller.ScrollToBottom()
 	}
 	WeatherDataDisp.Refresh()
+}
+
+// DisplaySensors - First, erase previously displayed list
+func DisplaySensors(m map[string]Sensor) {
+	SensorDisplay.RemoveAll()
+	header := fmt.Sprintf("Number of Visible Sensors = %d", len(visibleSensors))
+	SensorDisplay.Add(&canvas.Text{
+		Text:      header,
+		Color:     color.Black,
+		TextSize:  12,
+		TextStyle: fyne.TextStyle{Monospace: true},
+	})
+	for s := range m {
+		sens := m[s]
+		text := sens.FormatSensor(1)
+		SensorDisplay.Add(&canvas.Text{
+			Text:      text,
+			Color:     color.Black,
+			TextSize:  12,
+			TextStyle: fyne.TextStyle{Monospace: true},
+		})
+	}
+	if len(SensorDisplay.Objects) > 100 {
+		SensorDisplay.Remove(SensorDisplay.Objects[0])
+	}
+	delta := (SensorDisplay.Size().Height - SensorScroller.Size().Height) - SensorScroller.Offset.Y
+
+	if delta < 100 {
+		SensorScroller.ScrollToBottom()
+	}
+	SensorDisplay.Refresh()
 }
 
 func UpdateAll() {
