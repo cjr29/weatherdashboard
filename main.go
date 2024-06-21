@@ -50,7 +50,6 @@ var (
 
 var messageHandler1 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	//log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
-	DisplayData(fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic()))
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
 		log.Fatalf("Unable to unmarshal JSON due to %s", err)
@@ -58,20 +57,21 @@ var messageHandler1 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 	outgoing.CopyWDRtoWD(incoming)
 	outgoing.Home = "home"
 	writeWeatherData(outgoing)
+	DisplayData(fmt.Sprintf("station: %s, time: %s, model: %s, id: %d, channel: %s, temp: %.1f, humidity: %.1f",
+		outgoing.Home, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel, outgoing.Temperature_F, outgoing.Humidity))
 	// Add sensor to avalableSensors table(map)
 	skey := outgoing.BuildSensorKey()
 	if _, ok := availableSensors[skey]; !ok {
 		// Sensor not in map. Add it.
 		sens := outgoing.GetSensorFromData() // Create Sensor record
 		availableSensors[skey] = sens        // Add it to the available sensors
-		log.Println(sens.FormatSensor(1))    // Log comma-separated line
+		// log.Println(sens.FormatSensor(1))    // Log comma-separated line
 	}
 
 }
 
 var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 	//log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
-	DisplayData(fmt.Sprintf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic()))
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
 		log.Fatalf("Unable to unmarshal JSON due to %s", err)
@@ -79,13 +79,15 @@ var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 	outgoing.CopyWDRtoWD(incoming)
 	outgoing.Home = "bus"
 	writeWeatherData(outgoing)
+	DisplayData(fmt.Sprintf("station: %s, time: %s, model: %s, id: %d, channel: %s, temp: %.1f, humidity: %.1f",
+		outgoing.Home, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel, outgoing.Temperature_F, outgoing.Humidity))
 	// Add sensor to avalableSensors table(map)
 	skey := outgoing.BuildSensorKey()
 	if _, ok := availableSensors[skey]; !ok {
 		// Sensor not in map. Add it.
 		sens := outgoing.GetSensorFromData() // Create Sensor record
 		availableSensors[skey] = sens        // Add it to the available sensors
-		log.Println(sens.FormatSensor(1))    // Log comma-separated line
+		// log.Println(sens.FormatSensor(1))    // Log comma-separated line
 	}
 }
 
@@ -278,7 +280,7 @@ func main() {
 
 	dataDisplay := widget.NewButton("Data", func() {
 		dataWindow := a.NewWindow("Weather Data From Sensors")
-		//tempLabel := widget.NewLabel("TEST OF NEW WINDOW")
+		dataWindow.SetMainMenu(menu)
 		dataWindow.SetContent(WeatherScroller)
 		dataWindow.Show()
 	})
