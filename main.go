@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -28,25 +29,36 @@ var (
 	opts            = mqtt.NewClientOptions()
 	datafile *os.File
 	// bufdatafile *bufio.Writer
-	nbytes          int
-	err             error
-	status          string
-	incoming        WeatherDataRaw
-	outgoing        WeatherData
-	visibleSensors  = make(map[string]Sensor) // Visible sensors table, no dups allowed
-	activeSensors   = make(map[string]Sensor) // Active sensors table
-	Console         = container.NewVBox()
-	ConsoleScroller = container.NewVScroll(Console)
-	WeatherDataDisp = container.NewVBox()
-	WeatherScroller = container.NewVScroll(WeatherDataDisp)
-	SensorDisplay   = container.NewVBox()
-	SensorScroller  = container.NewVScroll(SensorDisplay)
-	statusContainer *fyne.Container
-	buttonContainer *fyne.Container
-	dataWindow      fyne.Window
-	sensorWindow    fyne.Window
-	swflag          bool = false // Sensor window flag. If true, window has been initilized.
-	ddflag          bool = false // Data display flag. If true, window has been initialized.
+	nbytes              int
+	err                 error
+	status              string
+	incoming            WeatherDataRaw
+	outgoing            WeatherData
+	visibleSensors      = make(map[string]Sensor) // Visible sensors table, no dups allowed
+	activeSensors       = make(map[string]Sensor) // Active sensors table
+	Console             = container.NewVBox()
+	ConsoleScroller     = container.NewVScroll(Console)
+	WeatherDataDisp     = container.NewVBox()
+	WeatherScroller     = container.NewVScroll(WeatherDataDisp)
+	SensorDisplay       = container.NewVBox()
+	SensorScroller      = container.NewVScroll(SensorDisplay)
+	EditSensorContainer *fyne.Container
+	statusContainer     *fyne.Container
+	buttonContainer     *fyne.Container
+	dataWindow          fyne.Window
+	sensorWindow        fyne.Window
+	editSensorWindow    fyne.Window
+	swflag              bool = false // Sensor window flag. If true, window has been initilized.
+	ddflag              bool = false // Data display flag. If true, window has been initialized.
+	selectSensor        *widget.Select
+	s_Home_widget       *widget.Entry = widget.NewEntry()
+	s_Name_widget       *widget.Entry = widget.NewEntry()
+	s_Location_widget   *widget.Entry = widget.NewEntry()
+	s_Model_widget      *widget.Label = widget.NewLabel("")
+	s_Id_widget         *widget.Label = widget.NewLabel("")
+	s_Channel_widget    *widget.Label = widget.NewLabel("")
+	s_LastEdit_widget   *widget.Label = widget.NewLabel("")
+	selectedValue       string        = ""
 )
 
 /**********************************************************************************
@@ -62,16 +74,23 @@ var messageHandler1 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 	}
 	outgoing.CopyWDRtoWD(incoming)
 	outgoing.Home = "home"
-	writeWeatherData(outgoing)
-	DisplayData(fmt.Sprintf("station: %s, time: %s, model: %s, id: %d, channel: %s, temp: %.1f, humidity: %.1f",
-		outgoing.Home, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel, outgoing.Temperature_F, outgoing.Humidity))
-	// Add sensor to visibleSensors table(map)
 	skey := outgoing.BuildSensorKey()
+	// Add sensor to visibleSensors table(map)
 	if _, ok := visibleSensors[skey]; !ok {
 		// Sensor not in map. Add it.
 		sens := outgoing.GetSensorFromData() // Create Sensor record
 		visibleSensors[skey] = sens          // Add it to the visible sensors
-		SetStatus(fmt.Sprintf("Added sensor: %s", skey))
+		SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
+	}
+	// If sensor is active, write to output file
+	if checkSensor(skey, activeSensors) {
+		s := activeSensors[skey]
+		outgoing.Home = s.Home
+		outgoing.SensorName = s.Name
+		outgoing.SensorLocation = s.Location
+		writeWeatherData(outgoing)
+		DisplayData(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s",
+			outgoing.Home, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
 	}
 }
 
@@ -84,16 +103,23 @@ var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 	}
 	outgoing.CopyWDRtoWD(incoming)
 	outgoing.Home = "bus"
-	writeWeatherData(outgoing)
-	DisplayData(fmt.Sprintf("station: %s, time: %s, model: %s, id: %d, channel: %s, temp: %.1f, humidity: %.1f",
-		outgoing.Home, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel, outgoing.Temperature_F, outgoing.Humidity))
-	// Add sensor to avalableSensors table(map)
 	skey := outgoing.BuildSensorKey()
+	// Add sensor to visibleSensors table(map)
 	if _, ok := visibleSensors[skey]; !ok {
 		// Sensor not in map. Add it.
 		sens := outgoing.GetSensorFromData() // Create Sensor record
 		visibleSensors[skey] = sens          // Add it to the visible sensors
-		SetStatus(fmt.Sprintf("Added sensor: %s", skey))
+		SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
+	}
+	// If sensor is active, write to output file
+	if checkSensor(skey, activeSensors) {
+		s := activeSensors[skey]
+		outgoing.Home = s.Home
+		outgoing.SensorName = s.Name
+		outgoing.SensorLocation = s.Location
+		writeWeatherData(outgoing)
+		DisplayData(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s",
+			outgoing.Home, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
 	}
 }
 
@@ -103,7 +129,7 @@ var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
 	// log.Printf("Connection lost: %v", err)
-	SetStatus(fmt.Sprintln("Connection to broker lost"))
+	SetStatus("Connection to broker lost")
 }
 
 func sub(client mqtt.Client) {
@@ -134,7 +160,7 @@ func (t *CustomChannel) UnmarshalJSON(data []byte) error {
 		var channelInt int
 		if err := json.Unmarshal(data, &channelInt); err != nil {
 			// log.Println("Can't unmarshal the channel field")
-			SetStatus(fmt.Sprintln("Can't unmarshal the channel field"))
+			SetStatus("Can't unmarshal the channel field")
 		}
 		t.Channel = strconv.Itoa(channelInt)
 		return nil
@@ -161,8 +187,8 @@ func checkSensor(key string, m map[string]Sensor) bool {
 }
 
 func writeWeatherData(wd WeatherData) {
-	nbytes, err = datafile.WriteString(fmt.Sprintf("station: %s, time: %s, model: %s, id: %d, channel: %s, temp: %.1f, humidity: %.1f\n",
-		wd.Home, wd.Time, wd.Model, wd.Id, wd.Channel, wd.Temperature_F, wd.Humidity))
+	nbytes, err = datafile.WriteString(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s\n",
+		wd.Home, wd.SensorName, wd.SensorLocation, wd.Temperature_F, wd.Humidity, wd.Time, wd.Model, wd.Id, wd.Channel))
 	check(err)
 }
 
@@ -225,16 +251,16 @@ func main() {
 	// Buttons & Containers
 
 	exitButton := widget.NewButton("Exit", func() {
-		SetStatus("User pressed Exit. Exiting dashboard.")
+		//SetStatus("User pressed Exit. Exiting dashboard.")
 		// log.Println("User halted program. Normal exit.")
 		os.Exit(0)
 	})
 
-	displaySensors := widget.NewButton("Sensors", func() {
+	displaySensors := widget.NewButton("Active Sensors", func() {
 		// Get displayable list of sensors
 		if !swflag {
-			sensorWindow = a.NewWindow("Unique Visible Sensors")
-			DisplaySensors(visibleSensors)
+			sensorWindow = a.NewWindow("Active Sensors")
+			DisplaySensors(activeSensors)
 			sensorWindow.SetContent(SensorScroller)
 			sensorWindow.SetOnClosed(func() {
 				swflag = false
@@ -242,7 +268,7 @@ func main() {
 			swflag = true
 			sensorWindow.Show()
 		} else {
-			DisplaySensors(visibleSensors)
+			DisplaySensors(activeSensors)
 			sensorWindow.Show()
 			swflag = true
 		}
@@ -263,10 +289,103 @@ func main() {
 		}
 	})
 
-	editSensor := widget.NewButton("Edit Sensor", func() {
-		editSensorWindow := a.NewWindow("Edit Sensor")
-		editSensorWindow.SetContent(widget.NewLabel("Placeholder for Edit Sensor content."))
-		editSensorWindow.Show()
+	// editSensor
+	//
+	EditSensorContainer = container.NewVBox(
+		widget.NewLabel("Update Home, Name, and Location, then press Submit to save."),
+		s_Home_widget,
+		s_Name_widget,
+		s_Location_widget,
+		s_Model_widget,
+		s_Id_widget,
+		s_Channel_widget,
+		s_LastEdit_widget,
+		widget.NewButton("Submit", func() {
+			// Insert the updated fields into the sensor record
+			// SetStatus("Submit edits button pressed.")
+			// SetStatus(fmt.Sprintf("Home: %s", s_Home_widget.Text))
+			// SetStatus(fmt.Sprintf("Name: %s", s_Name_widget.Text))
+			// SetStatus(fmt.Sprintf("Location: %s", s_Location_widget.Text))
+			editSensorWindow.Close()
+		}),
+	)
+
+	editSensorButton := widget.NewButton("Edit Sensor", func() {
+		selectSensorWindow := a.NewWindow("Select a Sensor to edit")
+		vlist := buildSensorList(activeSensors) // Get list of visible sensors
+		pickSensor := widget.NewSelect(vlist, func(value string) {
+			// SetStatus(fmt.Sprintf("Selected sensor: %s", value))
+			selectedValue = value
+			// Get key for selected sensor - Key: field of value
+			key := strings.Split(selectedValue, "Key: ")[1] // Found at end of the displayed string after "Key: ..."
+			// SetStatus("Extracted key = " + key)
+			// log.Println("Extracted key = " + key)
+			// Load widgets using selected sensor
+			s := activeSensors[key]
+			// log.Println("Found selected sensor in activeSensors")
+			s_Home_widget.SetText(s.Home)
+			s_Home_widget.SetPlaceHolder("Home")
+			s_Name_widget.SetText(s.Name)
+			s_Name_widget.SetPlaceHolder("Name")
+			s_Location_widget.SetText(s.Location)
+			s_Location_widget.SetPlaceHolder("Location")
+			s_Model_widget.SetText(s.Model)
+			s_Id_widget.SetText(strconv.Itoa(s.Id))
+			s_Channel_widget.SetText(s.Channel)
+			s_LastEdit_widget.SetText(s.LastEdit)
+			selectSensorWindow.Close()
+			// Pop up a window to let user edit record, then save the record
+			editSensorWindow = a.NewWindow("Edit active sensor properties.")
+			editSensorWindow.SetContent(EditSensorContainer)
+			editSensorWindow.SetOnClosed(func() {
+				// Save updated record back to activeSensors
+				s.Home = s_Home_widget.Text
+				s.Name = s_Name_widget.Text
+				s.Location = s_Location_widget.Text
+				activeSensors[key] = s
+				editSensorWindow.Close()
+			})
+			editSensorWindow.Show()
+		})
+		pickSensorContainer := container.NewVBox(
+			widget.NewLabel("Pick a sensor to edit. Use the toggle to scroll through active sensors to find sensor to edit. ***************************"+
+				"******************************************"),
+			pickSensor,
+		)
+		selectSensorWindow.SetContent(pickSensorContainer)
+		selectSensorWindow.Show()
+	})
+
+	var selections []string
+	addActiveSensorsButton := widget.NewButton("Add Sensor(s)", func() {
+		addSensorWindow := a.NewWindow("Select Sensors to add to active list")
+		vlist := buildSensorList(visibleSensors) // Get list of visible sensors
+		pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
+			selections = choices
+		})
+		addSensorContainer := container.NewVBox(
+			widget.NewLabel("Select all sensors to be added to the active sensors list"),
+			pickSensors,
+			widget.NewButton("Submit", func() {
+				// SetStatus("Submit pressed to add selected sensors to active list.")
+				// Process selected sensors and add to the active sensors map
+				for i := 0; i < len(selections); i++ {
+					// Get key for selected sensor - Key: field of value
+					key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
+					// SetStatus("Extracted key = " + key)
+					// log.Println("Extracted key = " + key)
+					// Load widgets using selected sensor
+					if checkSensor(key, visibleSensors) {
+						// log.Println("Found selected sensor in visibleSensors")
+						// Add sensors to activeSensors map - TBD
+						activeSensors[key] = visibleSensors[key]
+					}
+				}
+				addSensorWindow.Close()
+			}),
+		)
+		addSensorWindow.SetContent(addSensorContainer)
+		addSensorWindow.Show()
 	})
 
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
@@ -276,7 +395,8 @@ func main() {
 	buttonContainer = container.NewHBox(
 		displaySensors,
 		dataDisplay,
-		editSensor,
+		addActiveSensorsButton,
+		editSensorButton,
 		exitButton,
 	)
 
@@ -303,7 +423,7 @@ func main() {
 	datafile, err = os.Create("./WeatherData.txt")
 	if err != nil {
 		// log.Fatal("Unable to create/open output file.\n", err)
-		SetStatus(fmt.Sprintf("Unable to create/open output file.", err))
+		SetStatus(fmt.Sprintf("Unable to create/open output file. %s", err))
 		panic(err.Error)
 	}
 	defer datafile.Close()
@@ -325,11 +445,11 @@ func main() {
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		// log.Println("Error connecting. Closing program.")
-		SetStatus(fmt.Sprint("Error connecting with broker. Closing program."))
+		SetStatus("Error connecting with broker. Closing program.")
 		panic(token.Error())
 	}
 	// log.Println("Client connected to broker")
-	SetStatus(fmt.Sprint("Client connected to broker"))
+	SetStatus("Client connected to broker")
 
 	//**********************************
 	// Turn over control to the GUI
@@ -386,7 +506,7 @@ func DisplayData(text string) {
 // DisplaySensors - First, erase previously displayed list
 func DisplaySensors(m map[string]Sensor) {
 	SensorDisplay.RemoveAll()
-	header := fmt.Sprintf("Number of Visible Sensors = %d", len(visibleSensors))
+	header := fmt.Sprintf("Number of Sensors = %d", len(m))
 	SensorDisplay.Add(&canvas.Text{
 		Text:      header,
 		Color:     color.Black,
