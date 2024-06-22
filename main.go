@@ -43,8 +43,10 @@ var (
 	SensorScroller  = container.NewVScroll(SensorDisplay)
 	statusContainer *fyne.Container
 	buttonContainer *fyne.Container
-	sensorContainer *fyne.Container
+	dataWindow      fyne.Window
 	sensorWindow    fyne.Window
+	swflag          bool = false // Sensor window flag. If true, window has been initilized.
+	ddflag          bool = false // Data display flag. If true, window has been initialized.
 )
 
 /**********************************************************************************
@@ -55,7 +57,8 @@ var messageHandler1 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 	//log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
-		log.Fatalf("Unable to unmarshal JSON due to %s", err)
+		// log.Fatalf("Unable to unmarshal JSON due to %s", err)
+		SetStatus(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
 	}
 	outgoing.CopyWDRtoWD(incoming)
 	outgoing.Home = "home"
@@ -76,7 +79,8 @@ var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 	//log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
-		log.Fatalf("Unable to unmarshal JSON due to %s", err)
+		// log.Fatalf("Unable to unmarshal JSON due to %s", err)
+		SetStatus(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
 	}
 	outgoing.CopyWDRtoWD(incoming)
 	outgoing.Home = "bus"
@@ -94,25 +98,25 @@ var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Mess
 }
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-	log.Println("Connected")
 	go sub(client)
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	log.Printf("Connect lost: %v", err)
+	// log.Printf("Connection lost: %v", err)
+	SetStatus(fmt.Sprintln("Connection to broker lost"))
 }
 
 func sub(client mqtt.Client) {
-	log.Printf("Subscribing to topic ==> %s\n", topic1)
-	// SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", topic1))
+	//log.Printf("Subscribing to topic ==> %s\n", topic1)
+	SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", topic1))
 	client.Subscribe(topic1, 0, messageHandler1)
-	log.Printf("Subscribed to topic %s\n", topic1)
-	// SetStatus(fmt.Sprintf("Subscribed to topic %s", topic1))
-	log.Printf("Subscribing to topic ==> %s\n", topic2)
-	// SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", topic2))
+	//log.Printf("Subscribed to topic %s\n", topic1)
+	SetStatus(fmt.Sprintf("Subscribed to topic %s", topic1))
+	// log.Printf("Subscribing to topic ==> %s\n", topic2)
+	SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", topic2))
 	client.Subscribe(topic2, 0, messageHandler2)
-	log.Printf("Subscribed to topic %s\n", topic2)
-	// SetStatus(fmt.Sprintf("Subscribed to topic %s", topic2))
+	// log.Printf("Subscribed to topic %s\n", topic2)
+	SetStatus(fmt.Sprintf("Subscribed to topic %s", topic2))
 }
 
 // UnmarshalJSON custom method for handling different types
@@ -129,7 +133,8 @@ func (t *CustomChannel) UnmarshalJSON(data []byte) error {
 		// Try to convert int to string before failing
 		var channelInt int
 		if err := json.Unmarshal(data, &channelInt); err != nil {
-			log.Println("Can't unmarshal the channel field")
+			// log.Println("Can't unmarshal the channel field")
+			SetStatus(fmt.Sprintln("Can't unmarshal the channel field"))
 		}
 		t.Channel = strconv.Itoa(channelInt)
 		return nil
@@ -178,7 +183,7 @@ func buildSensorList(m map[string]Sensor) []string {
 func config() {
 	inidata, err := ini.Load("config.ini")
 	if err != nil {
-		fmt.Printf("Unable to read configuration file: %v", err)
+		// fmt.Printf("Unable to read configuration file: %v", err)
 		SetStatus(fmt.Sprintf("Unable to read configuration file: %v", err))
 		os.Exit(1)
 	}
@@ -220,26 +225,48 @@ func main() {
 	// Buttons & Containers
 
 	exitButton := widget.NewButton("Exit", func() {
-		SetStatus("Exiting dashboard")
-		log.Println("User halted program. Normal exit.")
+		SetStatus("User pressed Exit. Exiting dashboard.")
+		// log.Println("User halted program. Normal exit.")
 		os.Exit(0)
 	})
 
 	displaySensors := widget.NewButton("Sensors", func() {
 		// Get displayable list of sensors
-		if sensorWindow == nil {
+		if !swflag {
 			sensorWindow = a.NewWindow("Unique Visible Sensors")
+			DisplaySensors(visibleSensors)
 			sensorWindow.SetContent(SensorScroller)
-			//sensorWindow.Close()
+			sensorWindow.SetOnClosed(func() {
+				swflag = false
+			})
+			swflag = true
+			sensorWindow.Show()
+		} else {
+			DisplaySensors(visibleSensors)
+			sensorWindow.Show()
+			swflag = true
 		}
-		DisplaySensors(visibleSensors)
-		sensorWindow.Show()
 	})
 
 	dataDisplay := widget.NewButton("Data", func() {
-		dataWindow := a.NewWindow("Weather Data From Sensors")
-		dataWindow.SetContent(WeatherScroller)
-		dataWindow.Show()
+		if !ddflag {
+			dataWindow = a.NewWindow("Weather Data From Sensors")
+			dataWindow.SetContent(WeatherScroller)
+			dataWindow.SetOnClosed(func() {
+				ddflag = false
+			})
+			ddflag = true
+			dataWindow.Show()
+		} else {
+			dataWindow.Show()
+			ddflag = true
+		}
+	})
+
+	editSensor := widget.NewButton("Edit Sensor", func() {
+		editSensorWindow := a.NewWindow("Edit Sensor")
+		editSensorWindow.SetContent(widget.NewLabel("Placeholder for Edit Sensor content."))
+		editSensorWindow.Show()
 	})
 
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
@@ -249,6 +276,7 @@ func main() {
 	buttonContainer = container.NewHBox(
 		displaySensors,
 		dataDisplay,
+		editSensor,
 		exitButton,
 	)
 
@@ -258,6 +286,7 @@ func main() {
 
 	mainContainer := container.NewVBox(
 		buttonContainer,
+		widget.NewLabel("Dashboard Status Scrolling Window"),
 		statusContainer,
 	)
 
@@ -273,15 +302,15 @@ func main() {
 	//**********************************
 	datafile, err = os.Create("./WeatherData.txt")
 	if err != nil {
-		log.Fatal("Unable to create/open output file.\n", err)
-		SetStatus(fmt.Sprintf("Unable to create/open output file.\n", err))
+		// log.Fatal("Unable to create/open output file.\n", err)
+		SetStatus(fmt.Sprintf("Unable to create/open output file.", err))
 		panic(err.Error)
 	}
 	defer datafile.Close()
 	datafile.Sync()
 
 	//**********************************
-	// Set configuration for MQTT
+	// Set configuration for MQTT, read from config.ini file in local directory
 	//**********************************
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
 	opts.SetClientID(clientID)
@@ -295,11 +324,12 @@ func main() {
 	//**********************************
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.Println("Error connecting. Closing program.")
+		// log.Println("Error connecting. Closing program.")
+		SetStatus(fmt.Sprint("Error connecting with broker. Closing program."))
 		panic(token.Error())
 	}
-	log.Println("Client connected to broker")
-	//SetStatus(fmt.Sprintln("Client connected to broker"))
+	// log.Println("Client connected to broker")
+	SetStatus(fmt.Sprint("Client connected to broker"))
 
 	//**********************************
 	// Turn over control to the GUI
