@@ -28,12 +28,12 @@ func TestMaps(t *testing.T) {
 		t.Errorf("Expected Key(%s) is not same as"+
 			" actual key (%s)", expectedKey, skey)
 	}
-	if _, ok = availableSensors[skey]; !ok {
+	if _, ok = visibleSensors[skey]; !ok {
 		// Sensor not in map. Add it.
 		sens := t_outgoing1.GetSensorFromData() // Create Sensor record
-		availableSensors[skey] = sens           // Add it to the available sensors
+		visibleSensors[skey] = sens             // Add it to the available sensors
 	}
-	t_model := availableSensors[expectedKey].Model
+	t_model := visibleSensors[expectedKey].Model
 	if t_model != "Acurite-606TX" {
 		t.Errorf("Expected value(%s) is not same as"+
 			" actual value (%s)", "Acurite-606TX", t_model)

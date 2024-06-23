@@ -253,6 +253,8 @@ func main() {
 	exitButton := widget.NewButton("Exit", func() {
 		//SetStatus("User pressed Exit. Exiting dashboard.")
 		// log.Println("User halted program. Normal exit.")
+		datafile.Sync()
+		datafile.Close()
 		os.Exit(0)
 	})
 
