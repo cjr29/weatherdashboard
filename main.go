@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"image/color"
 	"log"
@@ -15,20 +14,9 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"gopkg.in/ini.v1"
 )
 
 var (
-	uid      string
-	pwd      string
-	broker   string
-	port     int    = 1883
-	clientID string = "weatherdashboard"
-	topic1   string = "home/weather/sensors"
-	topic2   string = "bus/weather/sensors"
-	opts            = mqtt.NewClientOptions()
-	datafile *os.File
-	// bufdatafile *bufio.Writer
 	nbytes              int
 	err                 error
 	status              string
@@ -48,9 +36,8 @@ var (
 	dataWindow          fyne.Window
 	sensorWindow        fyne.Window
 	editSensorWindow    fyne.Window
-	swflag              bool = false // Sensor window flag. If true, window has been initilized.
-	ddflag              bool = false // Data display flag. If true, window has been initialized.
-	selectSensor        *widget.Select
+	swflag              bool          = false // Sensor window flag. If true, window has been initilized.
+	ddflag              bool          = false // Data display flag. If true, window has been initialized.
 	s_Home_widget       *widget.Entry = widget.NewEntry()
 	s_Name_widget       *widget.Entry = widget.NewEntry()
 	s_Location_widget   *widget.Entry = widget.NewEntry()
@@ -62,163 +49,8 @@ var (
 )
 
 /**********************************************************************************
- *	MQTT Message Handling
- **********************************************************************************/
-
-var messageHandler1 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	//log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
-	err := json.Unmarshal(msg.Payload(), &incoming)
-	if err != nil {
-		// log.Fatalf("Unable to unmarshal JSON due to %s", err)
-		SetStatus(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
-	}
-	outgoing.CopyWDRtoWD(incoming)
-	outgoing.Home = "home"
-	skey := outgoing.BuildSensorKey()
-	// Add sensor to visibleSensors table(map)
-	if _, ok := visibleSensors[skey]; !ok {
-		// Sensor not in map. Add it.
-		sens := outgoing.GetSensorFromData() // Create Sensor record
-		visibleSensors[skey] = sens          // Add it to the visible sensors
-		SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
-	}
-	// If sensor is active, write to output file
-	if checkSensor(skey, activeSensors) {
-		s := activeSensors[skey]
-		outgoing.Home = s.Home
-		outgoing.SensorName = s.Name
-		outgoing.SensorLocation = s.Location
-		writeWeatherData(outgoing)
-		DisplayData(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s",
-			outgoing.Home, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
-	}
-}
-
-var messageHandler2 mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	//log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
-	err := json.Unmarshal(msg.Payload(), &incoming)
-	if err != nil {
-		// log.Fatalf("Unable to unmarshal JSON due to %s", err)
-		SetStatus(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
-	}
-	outgoing.CopyWDRtoWD(incoming)
-	outgoing.Home = "bus"
-	skey := outgoing.BuildSensorKey()
-	// Add sensor to visibleSensors table(map)
-	if _, ok := visibleSensors[skey]; !ok {
-		// Sensor not in map. Add it.
-		sens := outgoing.GetSensorFromData() // Create Sensor record
-		visibleSensors[skey] = sens          // Add it to the visible sensors
-		SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
-	}
-	// If sensor is active, write to output file
-	if checkSensor(skey, activeSensors) {
-		s := activeSensors[skey]
-		outgoing.Home = s.Home
-		outgoing.SensorName = s.Name
-		outgoing.SensorLocation = s.Location
-		writeWeatherData(outgoing)
-		DisplayData(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s",
-			outgoing.Home, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
-	}
-}
-
-var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-	go sub(client)
-}
-
-var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	// log.Printf("Connection lost: %v", err)
-	SetStatus("Connection to broker lost")
-}
-
-func sub(client mqtt.Client) {
-	//log.Printf("Subscribing to topic ==> %s\n", topic1)
-	SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", topic1))
-	client.Subscribe(topic1, 0, messageHandler1)
-	//log.Printf("Subscribed to topic %s\n", topic1)
-	SetStatus(fmt.Sprintf("Subscribed to topic %s", topic1))
-	// log.Printf("Subscribing to topic ==> %s\n", topic2)
-	SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", topic2))
-	client.Subscribe(topic2, 0, messageHandler2)
-	// log.Printf("Subscribed to topic %s\n", topic2)
-	SetStatus(fmt.Sprintf("Subscribed to topic %s", topic2))
-}
-
-// UnmarshalJSON custom method for handling different types
-// of the amount field.
-func (t *CustomChannel) UnmarshalJSON(data []byte) error {
-	if string(data) == "null" || string(data) == `""` {
-		return nil
-	}
-
-	// Handle Channel which can be "A" or 1, string or int
-	var channel string // try to unmarshal to string
-
-	if err := json.Unmarshal(data, &channel); err != nil {
-		// Try to convert int to string before failing
-		var channelInt int
-		if err := json.Unmarshal(data, &channelInt); err != nil {
-			// log.Println("Can't unmarshal the channel field")
-			SetStatus("Can't unmarshal the channel field")
-		}
-		t.Channel = strconv.Itoa(channelInt)
-		return nil
-	}
-
-	// Set the fields to the new struct,
-	t.Channel = channel
-
-	return nil
-}
-
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-// checkSensor - Check if sensor is in active sensor table
-func checkSensor(key string, m map[string]Sensor) bool {
-	if _, ok := m[key]; ok {
-		return true
-	}
-	return false
-}
-
-func writeWeatherData(wd WeatherData) {
-	nbytes, err = datafile.WriteString(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s\n",
-		wd.Home, wd.SensorName, wd.SensorLocation, wd.Temperature_F, wd.Humidity, wd.Time, wd.Model, wd.Id, wd.Channel))
-	check(err)
-}
-
-// Create sensor list
-func buildSensorList(m map[string]Sensor) []string {
-	var list []string
-	for s := range m {
-		sens := m[s]
-		list = append(list, sens.FormatSensor(1))
-	}
-	return list
-}
-
-/**********************************************************************************
  *	Program Control
  **********************************************************************************/
-
-func config() {
-	inidata, err := ini.Load("config.ini")
-	if err != nil {
-		// fmt.Printf("Unable to read configuration file: %v", err)
-		SetStatus(fmt.Sprintf("Unable to read configuration file: %v", err))
-		os.Exit(1)
-	}
-	section := inidata.Section("broker")
-
-	broker = section.Key("host").String()
-	uid = section.Key("username").String()
-	pwd = section.Key("password").String()
-}
 
 func main() {
 	//**********************************
@@ -251,10 +83,10 @@ func main() {
 	// Buttons & Containers
 
 	exitButton := widget.NewButton("Exit", func() {
-		//SetStatus("User pressed Exit. Exiting dashboard.")
-		// log.Println("User halted program. Normal exit.")
-		datafile.Sync()
-		datafile.Close()
+		for _, d := range DataFiles {
+			d.file.Sync()
+			d.file.Close()
+		}
 		os.Exit(0)
 	})
 
@@ -303,11 +135,6 @@ func main() {
 		s_Channel_widget,
 		s_LastEdit_widget,
 		widget.NewButton("Submit", func() {
-			// Insert the updated fields into the sensor record
-			// SetStatus("Submit edits button pressed.")
-			// SetStatus(fmt.Sprintf("Home: %s", s_Home_widget.Text))
-			// SetStatus(fmt.Sprintf("Name: %s", s_Name_widget.Text))
-			// SetStatus(fmt.Sprintf("Location: %s", s_Location_widget.Text))
 			editSensorWindow.Close()
 		}),
 	)
@@ -316,15 +143,11 @@ func main() {
 		selectSensorWindow := a.NewWindow("Select a Sensor to edit")
 		vlist := buildSensorList(activeSensors) // Get list of visible sensors
 		pickSensor := widget.NewSelect(vlist, func(value string) {
-			// SetStatus(fmt.Sprintf("Selected sensor: %s", value))
 			selectedValue = value
 			// Get key for selected sensor - Key: field of value
 			key := strings.Split(selectedValue, "Key: ")[1] // Found at end of the displayed string after "Key: ..."
-			// SetStatus("Extracted key = " + key)
-			// log.Println("Extracted key = " + key)
 			// Load widgets using selected sensor
 			s := activeSensors[key]
-			// log.Println("Found selected sensor in activeSensors")
 			s_Home_widget.SetText(s.Home)
 			s_Home_widget.SetPlaceHolder("Home")
 			s_Name_widget.SetText(s.Name)
@@ -374,11 +197,8 @@ func main() {
 				for i := 0; i < len(selections); i++ {
 					// Get key for selected sensor - Key: field of value
 					key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
-					// SetStatus("Extracted key = " + key)
-					// log.Println("Extracted key = " + key)
 					// Load widgets using selected sensor
 					if checkSensor(key, visibleSensors) {
-						// log.Println("Found selected sensor in visibleSensors")
 						// Add sensors to activeSensors map - TBD
 						activeSensors[key] = visibleSensors[key]
 					}
@@ -420,18 +240,6 @@ func main() {
 	config()
 
 	//**********************************
-	// Open data output file
-	//**********************************
-	datafile, err = os.Create("./WeatherData.txt")
-	if err != nil {
-		// log.Fatal("Unable to create/open output file.\n", err)
-		SetStatus(fmt.Sprintf("Unable to create/open output file. %s", err))
-		panic(err.Error)
-	}
-	defer datafile.Close()
-	datafile.Sync()
-
-	//**********************************
 	// Set configuration for MQTT, read from config.ini file in local directory
 	//**********************************
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
@@ -446,18 +254,22 @@ func main() {
 	//**********************************
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		// log.Println("Error connecting. Closing program.")
 		SetStatus("Error connecting with broker. Closing program.")
 		panic(token.Error())
 	}
-	// log.Println("Client connected to broker")
-	SetStatus("Client connected to broker")
+	SetStatus(fmt.Sprintf("Client connected to broker %s", broker))
 
 	//**********************************
 	// Turn over control to the GUI
 	//**********************************
 
 	w.ShowAndRun()
+}
+
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
 }
 
 func SetStatus(s string) {

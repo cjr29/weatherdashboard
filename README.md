@@ -11,5 +11,10 @@ Once the GUI is set up, the program connects to the broker and subscribes to the
 specified topics. Each topic is assigned a source 'home' to help the user identify
 where a specific message originated.
 
-The program is a single package, **main**, with two files, **main.go** and **datastructures.go**.
+The program is a single package, **main**, with four files, **main.go**, **datastructures.go**,
+**config.go**, and **messagehandling**. Configuration information is initialized using a .ini file,
+but when user-configurable menu is developed, the configuration will be saved in a .yaml file.
+Passwords and broker names are not saved in the code to ensure security. The .yaml file will have the
+passwords and broker names, so DO NOT upload .yaml files to github!
+
 A separate test file, **main_test.go** is provided to test the map functions.
