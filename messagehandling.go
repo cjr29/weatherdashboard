@@ -4,11 +4,57 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 /**********************************************************************************
  *	MQTT Message Handling
  **********************************************************************************/
+
+var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+	err := json.Unmarshal(msg.Payload(), &incoming)
+	if err != nil {
+		SetStatus(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
+	}
+	outgoing.CopyWDRtoWD(incoming)
+	outgoing.Station = strings.Split(msg.Topic(), "/")[0] // station, or home, is the first segment of the msg.Topic
+	skey := outgoing.BuildSensorKey()
+	// Add sensor to visibleSensors table(map)
+	if _, ok := visibleSensors[skey]; !ok {
+		// Sensor not in map. Add it.
+		sens := outgoing.GetSensorFromData() // Create Sensor record
+		visibleSensors[skey] = sens          // Add it to the visible sensors
+		SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
+	}
+	// If sensor is active, write to output file
+	if checkSensor(skey, activeSensors) {
+		s := activeSensors[skey]
+		outgoing.Station = s.Station
+		outgoing.SensorName = s.Name
+		outgoing.SensorLocation = s.Location
+		writeWeatherData(outgoing)
+		DisplayData(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s",
+			outgoing.Station, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
+	}
+}
+
+var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
+	go sub(client)
+}
+
+var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
+	SetStatus("Connection to broker lost")
+}
+
+func sub(client mqtt.Client) {
+	for _, m := range messages {
+		//SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", m.Topic))
+		client.Subscribe(m.Topic, 0, messageHandler)
+		SetStatus(fmt.Sprintf("Subscribed to topic %s", m.Topic))
+	}
+}
 
 // UnmarshalJSON custom method for handling different types
 // of the amount field.
