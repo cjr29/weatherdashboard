@@ -57,8 +57,8 @@ func buildSensorList(m map[string]Sensor) []string {
 
 // writeWeatherData - Output weather record to appropriate file based on the station (home)
 func writeWeatherData(wd WeatherData) {
-	datafile := DataFiles[wd.Station].file
-	nbytes, err = datafile.WriteString(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s\n",
+	datafile := dataFiles[wd.Station].file
+	_, err := datafile.WriteString(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s\n",
 		wd.Station, wd.SensorName, wd.SensorLocation, wd.Temperature_F, wd.Humidity, wd.Time, wd.Model, wd.Id, wd.Channel))
 	check(err)
 }

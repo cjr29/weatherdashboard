@@ -69,7 +69,7 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 }
 
 func sub(client mqtt.Client) {
-	for _, m := range Messages {
+	for _, m := range messages {
 		//SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", m.Topic))
 		client.Subscribe(m.Topic, 0, messageHandler)
 		SetStatus(fmt.Sprintf("Subscribed to topic %s", m.Topic))
@@ -95,16 +95,16 @@ func config() {
 
 	// First broker - initialize from the config.ini file
 	// FUTURE ENHANCEMENT: Support multiple brokers, data structures already in place
-	b := Brokers[0]
+	b := brokers[0]
 	b.Path = broker
 	b.Uid = uid
 	b.Pwd = pwd
-	Brokers[0] = b // Replace Broker with updated data
+	brokers[0] = b // Replace Broker with updated data
 
 	//**********************************
 	// Open data output files, one for each message subscription
 	//**********************************
-	for _, m := range Messages {
+	for _, m := range messages {
 		fp := "./WeatherData-" + m.Station + ".txt"
 		dfile := new(DataFile)
 		dfile.path = fp
@@ -113,7 +113,7 @@ func config() {
 			SetStatus(fmt.Sprintf("Unable to create/open output file. %s", err))
 			panic(err.Error)
 		}
-		DataFiles[m.Station] = *dfile // Add the new DataFile object to the array of data files
+		dataFiles[m.Station] = *dfile // Add the new DataFile object to the array of data files
 		SetStatus(fmt.Sprintf("Opened data file %s", fp))
 	}
 

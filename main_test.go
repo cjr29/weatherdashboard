@@ -16,7 +16,7 @@ var t_outgoing1 = WeatherData{
 	Temperature_F: 75.5,
 	Humidity:      40.0,
 	Mic:           "CHECKSUM",
-	Home:          "home",
+	Station:       "home",
 }
 
 func TestMaps(t *testing.T) {

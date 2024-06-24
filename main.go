@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	nbytes              int
+	//nbytes              int
 	err                 error
 	status              string
 	incoming            WeatherDataRaw
@@ -83,7 +83,7 @@ func main() {
 	// Buttons & Containers
 
 	exitButton := widget.NewButton("Exit", func() {
-		for _, d := range DataFiles {
+		for _, d := range dataFiles {
 			d.file.Sync()
 			d.file.Close()
 		}

@@ -74,7 +74,7 @@ type ActiveSensor struct {
 	LastEdit  string
 }
 
-var Brokers = []Broker{
+var brokers = []Broker{
 	{"path", 1883, "uid", "pwd"},
 }
 
@@ -84,7 +84,7 @@ type Message struct {
 }
 
 // Initialize two topics to subscribe to
-var Messages = []Message{
+var messages = []Message{
 	{"home/weather/sensors", "home"},
 	{"bus/weather/sensors", "bus"},
 }
@@ -94,7 +94,7 @@ type DataFile struct {
 	path string
 }
 
-var DataFiles = make(map[string]DataFile) // Home:DataFile
+var dataFiles = make(map[string]DataFile) // Home:DataFile
 
 /**********************************************************************************
  *	Data Structures
