@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strconv"
 )
 
@@ -38,7 +39,7 @@ type WeatherData struct {
 	Temperature_F  float64 `json:"temperature_F"` //69.4
 	Humidity       float64 `json:"humidity"`      // Can appear as integer or a decimal value
 	Mic            string  `json:"mic"`           //"CHECKSUM"
-	Home           string  // Sensor station
+	Station        string  // Sensor station
 	SensorName     string
 	SensorLocation string
 }
@@ -48,12 +49,52 @@ type Sensor struct {
 	Model     string
 	Id        int
 	Channel   string
-	Home      string // Station name, e.g., "House" or "Barn"
+	Station   string // Station name, e.g., "Home" or "Barn"
 	Name      string // Name given by user
 	Location  string // Optional location of sensor
 	DateAdded string
 	LastEdit  string
 }
+
+type Broker struct {
+	Path string
+	Port int
+	Uid  string
+	Pwd  string
+}
+
+type ActiveSensor struct {
+	Home      string
+	Name      string
+	Location  string
+	Model     string
+	Id        string
+	Channel   string
+	DateAdded string
+	LastEdit  string
+}
+
+var Brokers = []Broker{
+	{"path", 1883, "uid", "pwd"},
+}
+
+type Message struct {
+	Topic   string
+	Station string
+}
+
+// Initialize two topics to subscribe to
+var Messages = []Message{
+	{"home/weather/sensors", "home"},
+	{"bus/weather/sensors", "bus"},
+}
+
+type DataFile struct {
+	file *os.File
+	path string
+}
+
+var DataFiles = make(map[string]DataFile) // Home:DataFile
 
 /**********************************************************************************
  *	Data Structures
@@ -62,7 +103,7 @@ type Sensor struct {
 func (wd *WeatherData) GetSensorFromData() Sensor {
 	var s Sensor
 	s.Key = wd.BuildSensorKey()
-	s.Home = wd.Home
+	s.Station = wd.Station
 	s.Model = wd.Model
 	s.Id = wd.Id
 	s.Channel = wd.Channel
@@ -89,7 +130,7 @@ func (wd *WeatherData) CopyWDRtoWD(from WeatherDataRaw) {
 
 // buildSensorKey - Generate the sensor key from the WeatherData structure
 func (wd *WeatherData) BuildSensorKey() string {
-	key := wd.Home + ":" + wd.Model + ":" + strconv.Itoa(wd.Id) + ":" + wd.Channel
+	key := wd.Station + ":" + wd.Model + ":" + strconv.Itoa(wd.Id) + ":" + wd.Channel
 	return key
 }
 
@@ -100,7 +141,7 @@ func (s *Sensor) FormatSensor(style int) string {
 	case 0:
 		{
 			str := "Sensor:\n"
-			str = str + "   Home: " + s.Home + "\n"
+			str = str + "   Station: " + s.Station + "\n"
 			str = str + "   Name: " + s.Name + "\n"
 			str = str + "   Location: " + s.Location + "\n"
 			str = str + "   Model: " + s.Model + "\n"
@@ -113,7 +154,7 @@ func (s *Sensor) FormatSensor(style int) string {
 		}
 	case 1:
 		{
-			str := "Home: " + s.Home + ","
+			str := "Station: " + s.Station + ","
 			str = str + "Name: " + s.Name + ","
 			str = str + "Location: " + s.Location + ","
 			str = str + "Model: " + s.Model + ","

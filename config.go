@@ -21,55 +21,13 @@ import (
 )
 
 var (
-	uid       string
-	pwd       string
-	broker    string
-	port      int    = 1883
-	clientID  string = "weatherdashboard"
-	opts             = mqtt.NewClientOptions()
-	datafile1 *os.File
-	datafile2 *os.File
+	uid      string
+	pwd      string
+	broker   string
+	port     int    = 1883
+	clientID string = "weatherdashboard"
+	opts            = mqtt.NewClientOptions()
 )
-
-type Broker struct {
-	Path string
-	Port int
-	Uid  string
-	Pwd  string
-}
-
-type ActiveSensor struct {
-	Home      string
-	Name      string
-	Location  string
-	Model     string
-	Id        string
-	Channel   string
-	DateAdded string
-	LastEdit  string
-}
-
-var Brokers = []Broker{
-	{"path", 1883, "uid", "pwd"},
-}
-
-type Message struct {
-	Topic string
-	Home  string
-}
-
-// Initialize two topics to subscribe to
-var Messages = []Message{
-	{"home/weather/sensors", "home"},
-	{"bus/weather/sensors", "bus"},
-}
-
-type DataFile struct {
-	file *os.File
-	path string
-}
-
-var DataFiles = make(map[string]DataFile) // Home:DataFile
 
 /**********************************************************************************
  *	MQTT Message Handling
@@ -81,7 +39,7 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 		SetStatus(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
 	}
 	outgoing.CopyWDRtoWD(incoming)
-	outgoing.Home = strings.Split(msg.Topic(), "/")[0] // station, or home, is the first segment of the msg.Topic
+	outgoing.Station = strings.Split(msg.Topic(), "/")[0] // station, or home, is the first segment of the msg.Topic
 	skey := outgoing.BuildSensorKey()
 	// Add sensor to visibleSensors table(map)
 	if _, ok := visibleSensors[skey]; !ok {
@@ -93,12 +51,12 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 	// If sensor is active, write to output file
 	if checkSensor(skey, activeSensors) {
 		s := activeSensors[skey]
-		outgoing.Home = s.Home
+		outgoing.Station = s.Station
 		outgoing.SensorName = s.Name
 		outgoing.SensorLocation = s.Location
 		writeWeatherData(outgoing)
 		DisplayData(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s",
-			outgoing.Home, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
+			outgoing.Station, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
 	}
 }
 
@@ -147,7 +105,7 @@ func config() {
 	// Open data output files, one for each message subscription
 	//**********************************
 	for _, m := range Messages {
-		fp := "./WeatherData-" + m.Home + ".txt"
+		fp := "./WeatherData-" + m.Station + ".txt"
 		dfile := new(DataFile)
 		dfile.path = fp
 		dfile.file, err = os.Create(dfile.path)
@@ -155,7 +113,7 @@ func config() {
 			SetStatus(fmt.Sprintf("Unable to create/open output file. %s", err))
 			panic(err.Error)
 		}
-		DataFiles[m.Home] = *dfile // Add the new DataFile object to the array of data files
+		DataFiles[m.Station] = *dfile // Add the new DataFile object to the array of data files
 		SetStatus(fmt.Sprintf("Opened data file %s", fp))
 	}
 

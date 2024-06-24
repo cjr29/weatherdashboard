@@ -38,7 +38,7 @@ var (
 	editSensorWindow    fyne.Window
 	swflag              bool          = false // Sensor window flag. If true, window has been initilized.
 	ddflag              bool          = false // Data display flag. If true, window has been initialized.
-	s_Home_widget       *widget.Entry = widget.NewEntry()
+	s_Station_widget    *widget.Entry = widget.NewEntry()
 	s_Name_widget       *widget.Entry = widget.NewEntry()
 	s_Location_widget   *widget.Entry = widget.NewEntry()
 	s_Model_widget      *widget.Label = widget.NewLabel("")
@@ -127,7 +127,7 @@ func main() {
 	//
 	EditSensorContainer = container.NewVBox(
 		widget.NewLabel("Update Home, Name, and Location, then press Submit to save."),
-		s_Home_widget,
+		s_Station_widget,
 		s_Name_widget,
 		s_Location_widget,
 		s_Model_widget,
@@ -148,8 +148,8 @@ func main() {
 			key := strings.Split(selectedValue, "Key: ")[1] // Found at end of the displayed string after "Key: ..."
 			// Load widgets using selected sensor
 			s := activeSensors[key]
-			s_Home_widget.SetText(s.Home)
-			s_Home_widget.SetPlaceHolder("Home")
+			s_Station_widget.SetText(s.Station)
+			s_Station_widget.SetPlaceHolder("Home")
 			s_Name_widget.SetText(s.Name)
 			s_Name_widget.SetPlaceHolder("Name")
 			s_Location_widget.SetText(s.Location)
@@ -164,7 +164,7 @@ func main() {
 			editSensorWindow.SetContent(EditSensorContainer)
 			editSensorWindow.SetOnClosed(func() {
 				// Save updated record back to activeSensors
-				s.Home = s_Home_widget.Text
+				s.Station = s_Station_widget.Text
 				s.Name = s_Name_widget.Text
 				s.Location = s_Location_widget.Text
 				activeSensors[key] = s
