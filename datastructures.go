@@ -45,48 +45,42 @@ type WeatherData struct {
 }
 
 type Sensor struct {
-	Key       string // Sensor key used for map lookup
-	Model     string
-	Id        int
-	Channel   string
-	Station   string // Station name, e.g., "Home" or "Barn"
-	Name      string // Name given by user
-	Location  string // Optional location of sensor
-	DateAdded string
-	LastEdit  string
+	Key       string `yaml:"Key"` // Sensor key used for map lookup
+	Model     string `yaml:"Model"`
+	Id        int    `yaml:"Id"`
+	Channel   string `yaml:"Channel"`
+	Station   string `yaml:"Station"`  // Station name, e.g., "Home" or "Barn"
+	Name      string `yaml:"Name"`     // Name given by user
+	Location  string `yaml:"Location"` // Optional location of sensor
+	DateAdded string `yaml:"DateAdded"`
+	LastEdit  string `yaml:"LastEdit"`
 }
 
 type Broker struct {
-	Path string
-	Port int
-	Uid  string
-	Pwd  string
+	Path string `yaml:"Path"`
+	Port int    `yaml:"Port"`
+	Uid  string `yaml:"Uid"`
+	Pwd  string `yaml:"Pwd"`
 }
 
-type ActiveSensor struct {
-	Home      string
-	Name      string
-	Location  string
-	Model     string
-	Id        string
-	Channel   string
-	DateAdded string
-	LastEdit  string
-}
+var (
+	availableSensors = make(map[string]Sensor) // Visible sensors table, no dups allowed
+	activeSensors    = make(map[string]Sensor) // Active sensors table
+)
 
 var brokers = []Broker{
-	{"path", 1883, "uid", "pwd"},
+	// {"path", 1883, "uid", "pwd"},
 }
 
 type Message struct {
-	Topic   string
-	Station string
+	Topic   string `yaml:"Topic"`
+	Station string `yaml:"Station"`
 }
 
 // Initialize two topics to subscribe to
 var messages = []Message{
-	{"home/weather/sensors", "home"},
-	{"bus/weather/sensors", "bus"},
+	// {"home/weather/sensors", "home"},
+	// {"bus/weather/sensors", "bus"},
 }
 
 type DataFile struct {
@@ -95,6 +89,12 @@ type DataFile struct {
 }
 
 var dataFiles = make(map[string]DataFile) // Home:DataFile
+
+type Configuration struct {
+	Brokers       []Broker
+	Messages      []Message
+	ActiveSensors map[string]Sensor
+}
 
 /**********************************************************************************
  *	Data Structures

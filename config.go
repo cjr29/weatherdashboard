@@ -11,46 +11,25 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
-
-	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"gopkg.in/ini.v1"
 )
 
-var (
-	uid      string
-	pwd      string
-	broker   string
-	port     int    = 1883
-	clientID string = "weatherdashboard"
-	opts            = mqtt.NewClientOptions()
-)
+var clientID string = "weatherdashboard"
 
-func config() {
+func readConfig() {
 	/*********************
-	* TO DO - Add code to check for config.yaml configuration file and restore from tht instead of config.ini
+	* TO DO - Add code to check for config.yaml configuration file and restore from that instead of config.ini
 	**********************/
 
-	inidata, err := ini.Load("config.ini")
-	if err != nil {
-		SetStatus(fmt.Sprintf("Unable to read configuration file: %v", err))
-		os.Exit(1)
-	}
+	// Read config from the config.json file
+	err := jsonInput()
+	check(err)
 
-	// Retrieve broker info from "broker" section of config.ini file
-	section := inidata.Section("broker")
-	broker = section.Key("host").String()
-	uid = section.Key("username").String()
-	pwd = section.Key("password").String()
-
-	// First broker - initialize from the config.ini file
-	// FUTURE ENHANCEMENT: Support multiple brokers, data structures already in place
-	b := brokers[0]
-	b.Path = broker
-	b.Uid = uid
-	b.Pwd = pwd
-	brokers[0] = b // Replace Broker with updated data
+	// Disable data logging
+	logdata_flg = false
 
 	//**********************************
 	// Open data output files, one for each message subscription
@@ -59,16 +38,79 @@ func config() {
 		fp := "./WeatherData-" + m.Station + ".txt"
 		dfile := new(DataFile)
 		dfile.path = fp
-		dfile.file, err = os.Create(dfile.path)
+		//dfile.file, err = os.Create(dfile.path)
+		dfile.file, err = os.OpenFile(fp, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
 			SetStatus(fmt.Sprintf("Unable to create/open output file. %s", err))
+			log.Println(fmt.Sprintf("Unable to create/open output file. %s", err))
 			panic(err.Error)
 		}
 		dataFiles[m.Station] = *dfile // Add the new DataFile object to the array of data files
 		SetStatus(fmt.Sprintf("Opened data file %s", fp))
 	}
 
-	/*********************
-	* TO DO - Add code to output configuration to a config.yaml file for restoration on next run
-	**********************/
+}
+
+func writeConfig() {
+	err := jsonOutput()
+	check(err)
+}
+
+// jsonOutput() - Write out all configuration options to a .json file
+func jsonOutput() (e error) {
+	// Declare a configuration structure composed of the structures and maps needed
+	c := Configuration{
+		Brokers:       brokers,
+		Messages:      messages,
+		ActiveSensors: activeSensors,
+	}
+	data, _ := json.MarshalIndent(c, "", "    ")
+	//fmt.Println(string(data))
+	err := os.WriteFile("config.json", data, 0644)
+	return err
+}
+
+// jsonInput() - Read configuration information from a .json file
+func jsonInput() (e error) {
+	// Declare a configuration structure composed of the structures and maps needed
+	c := Configuration{
+		Brokers:       brokers,
+		Messages:      messages,
+		ActiveSensors: activeSensors,
+	}
+
+	inidata, err := os.ReadFile("config.json")
+	if err != nil {
+		log.Println("Unable to open config.json file.")
+		return err
+	}
+	//fmt.Print(string(inidata))
+
+	err = json.Unmarshal(inidata, &c)
+	if err != nil {
+		log.Printf(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
+		return err
+	}
+
+	brokers = nil
+	messages = nil
+
+	// Copy the configuration information into the data structures.
+	brokers = append(brokers, c.Brokers...)
+	messages = append(messages, c.Messages...)
+	for key, value := range c.ActiveSensors {
+		activeSensors[key] = value
+	}
+
+	/* for _, b := range brokers {
+		fmt.Printf("Broker path: %s, port: %d\n", b.Path, b.Port)
+	}
+	for _, m := range messages {
+		fmt.Printf("Subscribed to: %s\n", m.Topic)
+	}
+	for _, s := range activeSensors {
+		fmt.Printf("Active sensor: %s\n", s.Key)
+	} */
+
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -16,14 +17,27 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+const (
+	// YYYY-MM-DD: 2022-03-23
+	YYYYMMDD = "2006-01-02"
+	// 24h hh:mm:ss: 14:23:20
+	HHMMSS24h = "15:04:05"
+	// 12h hh:mm:ss: 2:23:20 PM
+	HHMMSS12h = "3:04:05 PM"
+	// text date: March 23, 2022
+	TextDate = "January 2, 2006"
+	// text date with weekday: Wednesday, March 23, 2022
+	TextDateWithWeekday = "Monday, January 2, 2006"
+	// abbreviated text date: Mar 23 Wed
+	AbbrTextDate = "Jan 2 Mon"
+)
+
 var (
 	//nbytes              int
 	err                 error
 	status              string
 	incoming            WeatherDataRaw
 	outgoing            WeatherData
-	visibleSensors      = make(map[string]Sensor) // Visible sensors table, no dups allowed
-	activeSensors       = make(map[string]Sensor) // Active sensors table
 	Console             = container.NewVBox()
 	ConsoleScroller     = container.NewVScroll(Console)
 	WeatherDataDisp     = container.NewVBox()
@@ -46,6 +60,7 @@ var (
 	s_Channel_widget    *widget.Label = widget.NewLabel("")
 	s_LastEdit_widget   *widget.Label = widget.NewLabel("")
 	selectedValue       string        = ""
+	logdata_flg         bool          = false
 )
 
 /**********************************************************************************
@@ -64,30 +79,47 @@ func main() {
 
 	//**********************************
 	// Menus
-	newSensorItem := fyne.NewMenuItem("New", func() { log.Println("New Sensor Menu Item") })
-	addSensorItem := fyne.NewMenuItem("Add Sensor", func() { log.Println("Add Sensor Menu Item") })
-	removeSensorItem := fyne.NewMenuItem("Remove Sensor", func() { log.Println("Remove Sensor Menu Item") })
-	visibleSensorsItem := fyne.NewMenuItem("Available Sensors", func() { log.Println("Available Sensors Menu Item") })
-	sensorMenu := fyne.NewMenu("Sensors", newSensorItem, addSensorItem, removeSensorItem, visibleSensorsItem)
+	/* 	newSensorItem := fyne.NewMenuItem("New", func() { log.Println("New Sensor Menu Item") })
+	   	addSensorItem := fyne.NewMenuItem("Add Sensor", func() { log.Println("Add Sensor Menu Item") })
+	   	removeSensorItem := fyne.NewMenuItem("Remove Sensor", func() { log.Println("Remove Sensor Menu Item") })
+	   	availableSensorsItem := fyne.NewMenuItem("Available Sensors", func() { log.Println("Available Sensors Menu Item") })
+	   	sensorMenu := fyne.NewMenu("Sensors", newSensorItem, addSensorItem, removeSensorItem, availableSensorsItem)
 
-	internetSpeedItem := fyne.NewMenuItem("Internet Speed", func() { log.Println("Internet Speed by Station") })
-	stationStatusItem := fyne.NewMenuItem("Station Status", func() { log.Println("Station Status") })
-	statusMenu := fyne.NewMenu("Status", internetSpeedItem, stationStatusItem)
+	   	internetSpeedItem := fyne.NewMenuItem("Internet Speed", func() { log.Println("Internet Speed by Station") })
+	   	stationStatusItem := fyne.NewMenuItem("Station Status", func() { log.Println("Station Status") })
+	   	statusMenu := fyne.NewMenu("Status", internetSpeedItem, stationStatusItem)
 
-	menu := fyne.NewMainMenu(sensorMenu, statusMenu)
+	   	menu := fyne.NewMainMenu(sensorMenu, statusMenu)
 
-	w.SetMainMenu(menu)
-	menu.Refresh()
+	   	w.SetMainMenu(menu)
+	   	menu.Refresh() */
 
 	//*************************************************
 	// Buttons & Containers
 
 	exitButton := widget.NewButton("Exit", func() {
+		// Close data files
 		for _, d := range dataFiles {
 			d.file.Sync()
 			d.file.Close()
 		}
+
+		// Output current configuration for later reload
+		writeConfig()
+
+		// Now, exit program
 		os.Exit(0)
+	})
+
+	// Display a box to check to turn data logging on and off
+	toggleDataLogging := widget.NewCheck("Log Data", func(b bool) {
+		if b {
+			logdata_flg = true
+			SetStatus("Data logging turned on")
+		} else {
+			logdata_flg = false
+			SetStatus("Data logging turned off")
+		}
 	})
 
 	displaySensors := widget.NewButton("Active Sensors", func() {
@@ -157,7 +189,10 @@ func main() {
 			s_Model_widget.SetText(s.Model)
 			s_Id_widget.SetText(strconv.Itoa(s.Id))
 			s_Channel_widget.SetText(s.Channel)
-			s_LastEdit_widget.SetText(s.LastEdit)
+			t := time.Now().Local()
+			st := t.Format(YYYYMMDD + " " + HHMMSS24h)
+			s_LastEdit_widget.SetText(st)
+			SetStatus(fmt.Sprintf("Last edit set to %s", st))
 			selectSensorWindow.Close()
 			// Pop up a window to let user edit record, then save the record
 			editSensorWindow = a.NewWindow("Edit active sensor properties.")
@@ -167,6 +202,7 @@ func main() {
 				s.Station = s_Station_widget.Text
 				s.Name = s_Name_widget.Text
 				s.Location = s_Location_widget.Text
+				s.LastEdit = st
 				activeSensors[key] = s
 				editSensorWindow.Close()
 			})
@@ -184,7 +220,7 @@ func main() {
 	var selections []string
 	addActiveSensorsButton := widget.NewButton("Add Sensor(s)", func() {
 		addSensorWindow := a.NewWindow("Select Sensors to add to active list")
-		vlist := buildSensorList(visibleSensors) // Get list of visible sensors
+		vlist := buildSensorList(availableSensors) // Get list of visible sensors
 		pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
 			selections = choices
 		})
@@ -198,9 +234,10 @@ func main() {
 					// Get key for selected sensor - Key: field of value
 					key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
 					// Load widgets using selected sensor
-					if checkSensor(key, visibleSensors) {
+					if checkSensor(key, availableSensors) {
 						// Add sensors to activeSensors map - TBD
-						activeSensors[key] = visibleSensors[key]
+						activeSensors[key] = availableSensors[key]
+						SetStatus(fmt.Sprintf("Added sensor to active sensors: %s", key))
 					}
 				}
 				addSensorWindow.Close()
@@ -208,6 +245,36 @@ func main() {
 		)
 		addSensorWindow.SetContent(addSensorContainer)
 		addSensorWindow.Show()
+	})
+
+	removeActiveSensorsButton := widget.NewButton("Remove Sensor(s)", func() {
+		removeSensorWindow := a.NewWindow("Select Sensors to remove from active list")
+		vlist := buildSensorList(activeSensors) // Get list of active sensors
+		pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
+			selections = choices
+		})
+		removeSensorContainer := container.NewVBox(
+			widget.NewLabel("Select all sensors to be removed from the active sensors list"),
+			pickSensors,
+			widget.NewButton("Submit", func() {
+				// SetStatus("Submit pressed to add selected sensors to active list.")
+				// Process selected sensors and add to the active sensors map
+				for i := 0; i < len(selections); i++ {
+					// Get key for selected sensor - Key: field of value
+					key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
+					// Load widgets using selected sensor
+					if checkSensor(key, activeSensors) {
+						// Add sensors to activeSensors map - TBD
+						delete(activeSensors, key)
+						SetStatus(fmt.Sprintf("Removed sensor from active sensors: %s", key))
+					}
+				}
+				removeSensorWindow.Close()
+			}),
+		)
+		removeSensorWindow.SetContent(removeSensorContainer)
+		removeSensorWindow.Show()
+
 	})
 
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
@@ -219,7 +286,9 @@ func main() {
 		dataDisplay,
 		addActiveSensorsButton,
 		editSensorButton,
+		removeActiveSensorsButton,
 		exitButton,
+		toggleDataLogging,
 	)
 
 	statusContainer = container.NewVBox(
@@ -237,15 +306,15 @@ func main() {
 	//**********************************
 	// Read configuration file
 	//**********************************
-	config()
+	readConfig()
 
 	//**********************************
 	// Set configuration for MQTT, read from config.ini file in local directory
 	//**********************************
-	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
+	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", brokers[0].Path, brokers[0].Port))
 	opts.SetClientID(clientID)
-	opts.SetUsername(uid)
-	opts.SetPassword(pwd)
+	opts.SetUsername(brokers[0].Uid)
+	opts.SetPassword(brokers[0].Pwd)
 	opts.OnConnect = connectHandler
 	opts.OnConnectionLost = connectLostHandler
 
@@ -255,9 +324,10 @@ func main() {
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		SetStatus("Error connecting with broker. Closing program.")
+		log.Println("Error connecting with broker. Closing program.")
 		panic(token.Error())
 	}
-	SetStatus(fmt.Sprintf("Client connected to broker %s", broker))
+	SetStatus(fmt.Sprintf("Client connected to broker %s", brokers[0].Path+":"+strconv.Itoa(brokers[0].Port)))
 
 	//**********************************
 	// Turn over control to the GUI
@@ -268,6 +338,7 @@ func main() {
 
 func check(e error) {
 	if e != nil {
+		log.Println(e)
 		panic(e)
 	}
 }

@@ -12,6 +12,7 @@ go6502
 *.txt
 *.ini
 *.yaml
+*.json
 
 # Test binary, built with `go test -c`
 *.test

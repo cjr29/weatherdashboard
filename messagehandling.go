@@ -9,6 +9,8 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
+var opts = mqtt.NewClientOptions()
+
 /**********************************************************************************
  *	MQTT Message Handling
  **********************************************************************************/
@@ -21,20 +23,24 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 	outgoing.CopyWDRtoWD(incoming)
 	outgoing.Station = strings.Split(msg.Topic(), "/")[0] // station, or home, is the first segment of the msg.Topic
 	skey := outgoing.BuildSensorKey()
-	// Add sensor to visibleSensors table(map)
-	if _, ok := visibleSensors[skey]; !ok {
-		// Sensor not in map. Add it.
-		sens := outgoing.GetSensorFromData() // Create Sensor record
-		visibleSensors[skey] = sens          // Add it to the visible sensors
-		SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
-	}
-	// If sensor is active, write to output file
-	if checkSensor(skey, activeSensors) {
+	// Add sensor to availableSensors table(map) if not already there AND if not already in activeSensors
+	if !checkSensor(skey, activeSensors) {
+		// Sensor not in active sensors map
+		if _, ok := availableSensors[skey]; !ok {
+			// Sensor not in available sensors map. Add it.
+			sens := outgoing.GetSensorFromData() // Create Sensor record
+			availableSensors[skey] = sens        // Add it to the visible sensors
+			SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
+		}
+	} else {
+		// Sensor is active, write record to output file
 		s := activeSensors[skey]
 		outgoing.Station = s.Station
 		outgoing.SensorName = s.Name
 		outgoing.SensorLocation = s.Location
-		writeWeatherData(outgoing)
+		if logdata_flg {
+			writeWeatherData(outgoing)
+		}
 		DisplayData(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s",
 			outgoing.Station, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
 	}
