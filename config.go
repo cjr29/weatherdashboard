@@ -26,7 +26,31 @@ func readConfig() {
 
 	// Read config from the config.json file
 	err := jsonInput()
-	check(err)
+	if err != nil {
+		// Can't open json file, ask user for broker info
+		SetStatus("Unable to find or open the config.json file. Asking user for broker info.")
+		var b Broker
+		var m Message
+		fmt.Println("Enter full path to weather broker: ")
+		fmt.Scanln(&b.Path)
+		b.Port = 1883
+		opts.AddBroker(fmt.Sprintf("tcp://%s:%d", b.Path, b.Port))
+		fmt.Println("Enter user Id: ")
+		fmt.Scanln(&b.Uid)
+		opts.SetUsername(b.Uid)
+		fmt.Printf("Enter password to weather broker %s: \n", b.Path)
+		fmt.Scanln(&b.Pwd)
+		opts.SetPassword(b.Pwd)
+		opts.SetClientID(clientID)
+		// Copy properties into the brokers array
+		brokers = append(brokers, b)
+		fmt.Println("Enter a topic to subscribe to:")
+		fmt.Scanln(&m.Topic)
+		fmt.Println("Enter station name:")
+		fmt.Scanln(&m.Station)
+		// Add to messages
+		messages = append(messages, m)
+	}
 
 	// Disable data logging
 	logdata_flg = false
