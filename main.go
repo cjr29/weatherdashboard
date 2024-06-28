@@ -27,8 +27,8 @@ const (
 )
 
 var (
+	a                   fyne.App
 	Client              mqtt.Client
-	err                 error
 	status              string
 	incoming            WeatherDataRaw
 	outgoing            WeatherData
@@ -45,11 +45,13 @@ var (
 	buttonContainer     *fyne.Container
 	dataWindow          fyne.Window
 	sensorWindow        fyne.Window
+	selectSensorWindow  fyne.Window
 	editSensorWindow    fyne.Window
 	topicWindow         fyne.Window
 	swflag              bool          = false // Sensor window flag. If true, window has been initilized.
 	ddflag              bool          = false // Data display flag. If true, window has been initialized.
 	tflag               bool          = false // Topic display flag. If true, window has been initialized
+	cancelEdit          bool          = false // Set to true to cancel current edit
 	s_Station_widget    *widget.Entry = widget.NewEntry()
 	s_Name_widget       *widget.Entry = widget.NewEntry()
 	s_Location_widget   *widget.Entry = widget.NewEntry()
@@ -60,7 +62,57 @@ var (
 	selectedValue       string        = ""
 	logdata_flg         bool          = false
 	selections          []string
+	sav_Station         string // to restore in case of edit cancel
+	sav_Name            string
+	sav_Location        string
 )
+
+var selectionHandler = func(value string) {
+	selectedValue = value
+	// Get key for selected sensor - Key: field of value
+	key := strings.Split(selectedValue, "Key: ")[1] // Found at end of the displayed string after "Key: ..."
+	// Load widgets using selected sensor
+	s := activeSensors[key]
+	sav_Station = s.Station
+	sav_Name = s.Name
+	sav_Location = s.Location
+	s_Station_widget.SetText(s.Station)
+	s_Station_widget.SetPlaceHolder("Home")
+	s_Name_widget.SetText(s.Name)
+	s_Name_widget.SetPlaceHolder("Name")
+	s_Location_widget.SetText(s.Location)
+	s_Location_widget.SetPlaceHolder("Location")
+	s_Model_widget.SetText(s.Model)
+	s_Id_widget.SetText(strconv.Itoa(s.Id))
+	s_Channel_widget.SetText(s.Channel)
+	t := time.Now().Local()
+	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
+	s_LastEdit_widget.SetText(st)
+	SetStatus(fmt.Sprintf("Last edit set to %s", st))
+	selectSensorWindow.Close()
+	// Pop up a window to let user edit record, then save the record
+	editSensorWindow = a.NewWindow("Edit active sensor properties.")
+	editSensorWindow.SetContent(EditSensorContainer)
+	editSensorWindow.SetOnClosed(func() {
+		if cancelEdit {
+			cancelEdit = false // reset flag for next time
+			// Restore orginal values
+			s_Station_widget.SetText(sav_Station)
+			s_Name_widget.SetText(sav_Name)
+			s_Location_widget.SetText(sav_Location)
+			editSensorWindow.Close()
+			return
+		}
+		// Save updated record back to activeSensors
+		s.Station = s_Station_widget.Text
+		s.Name = s_Name_widget.Text
+		s.Location = s_Location_widget.Text
+		s.LastEdit = st
+		activeSensors[key] = s
+		editSensorWindow.Close()
+	})
+	editSensorWindow.Show()
+}
 
 /**********************************************************************************
  *	Program Control
@@ -70,7 +122,7 @@ func main() {
 	//**********************************
 	// Set up Fyne window before trying to write to Status line!!!
 	//**********************************
-	a := app.NewWithID("github.com/cjr29/weatherdashboard")
+	a = app.NewWithID("github.com/cjr29/weatherdashboard")
 	w := a.NewWindow("Weather Dashboard")
 	w.Resize(fyne.NewSize(640, 460))
 	w.SetMaster()
@@ -166,14 +218,20 @@ func main() {
 		s_Channel_widget,
 		s_LastEdit_widget,
 		widget.NewButton("Submit", func() {
+			cancelEdit = false
+			editSensorWindow.Close()
+		}),
+		widget.NewButton("Cancel", func() {
+			cancelEdit = true
 			editSensorWindow.Close()
 		}),
 	)
 
 	editSensorButton := widget.NewButton("Edit Sensor", func() {
-		selectSensorWindow := a.NewWindow("Select a Sensor to edit")
+		selectSensorWindow = a.NewWindow("Select a Sensor to edit from the Active Sensors list")
 		vlist := buildSensorList(activeSensors) // Get list of visible sensors
-		pickSensor := widget.NewSelect(vlist, func(value string) {
+		pickSensor := widget.NewSelect(vlist, selectionHandler)
+		/* 		pickSensor := widget.NewSelect(vlist, func(value string) {
 			selectedValue = value
 			// Get key for selected sensor - Key: field of value
 			key := strings.Split(selectedValue, "Key: ")[1] // Found at end of the displayed string after "Key: ..."
@@ -206,12 +264,16 @@ func main() {
 				editSensorWindow.Close()
 			})
 			editSensorWindow.Show()
-		})
-		pickSensorContainer := container.NewVBox(
-			widget.NewLabel("Pick a sensor to edit. Use the toggle to scroll through active sensors to find sensor to edit. ***************************"+
-				"******************************************"),
-			pickSensor,
-		)
+		}) */
+		// pickSensorContainer := container.NewVBox(
+		// 	widget.NewLabel("Pick a sensor to edit. Use the toggle to scroll through active sensors to find sensor to edit. ***************************"+
+		// 		"******************************************"),
+		// 	pickSensor,
+		// )
+
+		header := widget.NewLabel("Pick a sensor to edit. Use the toggle to scroll through active sensors to find sensor to edit. ***************************" +
+			"******************************************")
+		pickSensorContainer := container.NewVBox(header, pickSensor)
 		selectSensorWindow.SetContent(pickSensorContainer)
 		selectSensorWindow.Show()
 	})
@@ -255,7 +317,6 @@ func main() {
 			widget.NewLabel("Select all sensors to be removed from the active sensors list"),
 			pickSensors,
 			widget.NewButton("Submit", func() {
-				// SetStatus("Submit pressed to add selected sensors to active list.")
 				// Process selected sensors and add to the active sensors map
 				for i := 0; i < len(selections); i++ {
 					// Get key for selected sensor - Key: field of value
@@ -342,7 +403,6 @@ func main() {
 						// Delete using key
 						key := tlist[k].Key
 						unsubscribe(Client, messages[key])
-						// SetStatus(fmt.Sprintf("Unsubscribed from topic: %s", messages[key].Topic))
 						delete(messages, key)
 					}
 				}
@@ -422,16 +482,6 @@ func check(e error) {
 		panic(e)
 	}
 }
-
-// deleteAtIndex - removes specific element from messages slice
-/* func deleteAtIndex(slice []Message, index int) []Message {
-	// Append function used to append elements to a slice
-	// first parameter as the slice to which the elements
-	// are to be added/appended second parameter is the
-	// element(s) to be appended into the slice
-	// return value as a slice
-	return append(slice[:index], slice[index+1:]...)
-} */
 
 func SetStatus(s string) {
 	status = s

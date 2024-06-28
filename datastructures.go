@@ -78,12 +78,6 @@ type Message struct {
 	Station string `json:"Station"`
 }
 
-// Initialize two topics to subscribe to
-// var messages = []Message{
-// 	// {"home/weather/sensors", "home"},
-// 	// {"bus/weather/sensors", "bus"},
-// }
-
 type DataFile struct {
 	file *os.File
 	path string
