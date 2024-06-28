@@ -45,27 +45,28 @@ type WeatherData struct {
 }
 
 type Sensor struct {
-	Key       string `yaml:"Key"` // Sensor key used for map lookup
-	Model     string `yaml:"Model"`
-	Id        int    `yaml:"Id"`
-	Channel   string `yaml:"Channel"`
-	Station   string `yaml:"Station"`  // Station name, e.g., "Home" or "Barn"
-	Name      string `yaml:"Name"`     // Name given by user
-	Location  string `yaml:"Location"` // Optional location of sensor
-	DateAdded string `yaml:"DateAdded"`
-	LastEdit  string `yaml:"LastEdit"`
+	Key       string `json:"Key"` // Sensor key used for map lookup
+	Model     string `json:"Model"`
+	Id        int    `json:"Id"`
+	Channel   string `json:"Channel"`
+	Station   string `json:"Station"`  // Station name, e.g., "Home" or "Barn"
+	Name      string `json:"Name"`     // Name given by user
+	Location  string `json:"Location"` // Optional location of sensor
+	DateAdded string `json:"DateAdded"`
+	LastEdit  string `json:"LastEdit"`
 }
 
 type Broker struct {
-	Path string `yaml:"Path"`
-	Port int    `yaml:"Port"`
-	Uid  string `yaml:"Uid"`
-	Pwd  string `yaml:"Pwd"`
+	Path string `json:"Path"`
+	Port int    `json:"Port"`
+	Uid  string `json:"Uid"`
+	Pwd  string `json:"Pwd"`
 }
 
 var (
 	availableSensors = make(map[string]Sensor) // Visible sensors table, no dups allowed
 	activeSensors    = make(map[string]Sensor) // Active sensors table
+	messages         = make(map[int]Message)   // Topics to be subscribed
 )
 
 var brokers = []Broker{
@@ -73,15 +74,15 @@ var brokers = []Broker{
 }
 
 type Message struct {
-	Topic   string `yaml:"Topic"`
-	Station string `yaml:"Station"`
+	Topic   string `json:"Topic"`
+	Station string `json:"Station"`
 }
 
 // Initialize two topics to subscribe to
-var messages = []Message{
-	// {"home/weather/sensors", "home"},
-	// {"bus/weather/sensors", "bus"},
-}
+// var messages = []Message{
+// 	// {"home/weather/sensors", "home"},
+// 	// {"bus/weather/sensors", "bus"},
+// }
 
 type DataFile struct {
 	file *os.File
@@ -92,8 +93,13 @@ var dataFiles = make(map[string]DataFile) // Home:DataFile
 
 type Configuration struct {
 	Brokers       []Broker
-	Messages      []Message
+	Messages      map[int]Message
 	ActiveSensors map[string]Sensor
+}
+
+type ChoicesIntKey struct {
+	Key     int    // Actual map key value
+	Display string // String to display in selection menu
 }
 
 /**********************************************************************************
@@ -168,6 +174,30 @@ func (s *Sensor) FormatSensor(style int) string {
 	default:
 		{
 			return "No format specified for sensor."
+		}
+	}
+}
+
+// Format Message string for writing
+// Style = 0, newlines; Style = 1, comma-separated one line
+func (m *Message) FormatMessage(style int) string {
+	switch style {
+	case 0:
+		{
+			str := "Message:\n"
+			str = str + "   Station: " + m.Station + "\n"
+			str = str + "   Topic: " + m.Topic + "\n"
+			return str
+		}
+	case 1:
+		{
+			str := "Station: " + m.Station + ", "
+			str = str + "Topic: " + m.Topic
+			return str
+		}
+	default:
+		{
+			return "No format specified for topic."
 		}
 	}
 }

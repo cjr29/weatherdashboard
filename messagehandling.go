@@ -62,6 +62,12 @@ func sub(client mqtt.Client) {
 	}
 }
 
+func unsubscribe(client mqtt.Client, msg Message) {
+	//SetStatus(fmt.Sprintf("Unsubscribing from topic ==> %s", m.Topic))
+	client.Unsubscribe(msg.Topic)
+	SetStatus(fmt.Sprintf("Unsubscribed from topic %s", msg.Topic))
+}
+
 // UnmarshalJSON custom method for handling different types
 // of the amount field.
 func (t *CustomChannel) UnmarshalJSON(data []byte) error {
@@ -97,12 +103,34 @@ func checkSensor(key string, m map[string]Sensor) bool {
 	return false
 }
 
+// checkMessage - Check if message is in message table
+func checkMessage(key int, m map[int]Message) bool {
+	if _, ok := m[key]; ok {
+		return true
+	}
+	return false
+}
+
 // Create sensor list
 func buildSensorList(m map[string]Sensor) []string {
 	var list []string
 	for s := range m {
 		sens := m[s]
 		list = append(list, sens.FormatSensor(1))
+	}
+	return list
+}
+
+// Create message (topic) list
+func buildMessageList(m map[int]Message) []ChoicesIntKey {
+	var list []ChoicesIntKey
+	i := 0
+	for key, message := range m {
+		var c ChoicesIntKey
+		c.Display = strconv.Itoa(i) + ": " + message.FormatMessage(1)
+		c.Key = key
+		list = append(list, c)
+		i++
 	}
 	return list
 }

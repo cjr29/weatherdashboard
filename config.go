@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 )
 
@@ -49,7 +50,8 @@ func readConfig() {
 		fmt.Println("Enter station name:")
 		fmt.Scanln(&m.Station)
 		// Add to messages
-		messages = append(messages, m)
+		key := rand.Int()
+		messages[key] = m
 	}
 
 	// Disable data logging
@@ -112,16 +114,17 @@ func jsonInput() (e error) {
 
 	err = json.Unmarshal(inidata, &c)
 	if err != nil {
-		log.Printf(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
+		log.Printf("Unable to unmarshal JSON due to %s", err)
 		return err
 	}
 
 	brokers = nil
-	messages = nil
 
 	// Copy the configuration information into the data structures.
 	brokers = append(brokers, c.Brokers...)
-	messages = append(messages, c.Messages...)
+	for key, value := range c.Messages {
+		messages[key] = value
+	}
 	for key, value := range c.ActiveSensors {
 		activeSensors[key] = value
 	}

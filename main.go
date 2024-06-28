@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -26,7 +27,7 @@ const (
 )
 
 var (
-	//nbytes              int
+	Client              mqtt.Client
 	err                 error
 	status              string
 	incoming            WeatherDataRaw
@@ -37,14 +38,18 @@ var (
 	WeatherScroller     = container.NewVScroll(WeatherDataDisp)
 	SensorDisplay       = container.NewVBox()
 	SensorScroller      = container.NewVScroll(SensorDisplay)
+	TopicDisplay        = container.NewVBox()
+	TopicScroller       = container.NewVScroll(TopicDisplay)
 	EditSensorContainer *fyne.Container
 	statusContainer     *fyne.Container
 	buttonContainer     *fyne.Container
 	dataWindow          fyne.Window
 	sensorWindow        fyne.Window
 	editSensorWindow    fyne.Window
+	topicWindow         fyne.Window
 	swflag              bool          = false // Sensor window flag. If true, window has been initilized.
 	ddflag              bool          = false // Data display flag. If true, window has been initialized.
+	tflag               bool          = false // Topic display flag. If true, window has been initialized
 	s_Station_widget    *widget.Entry = widget.NewEntry()
 	s_Name_widget       *widget.Entry = widget.NewEntry()
 	s_Location_widget   *widget.Entry = widget.NewEntry()
@@ -54,6 +59,7 @@ var (
 	s_LastEdit_widget   *widget.Label = widget.NewLabel("")
 	selectedValue       string        = ""
 	logdata_flg         bool          = false
+	selections          []string
 )
 
 /**********************************************************************************
@@ -71,7 +77,7 @@ func main() {
 	os.Setenv("FYNE_THEME", "light")
 
 	//**********************************
-	// Menus
+	// Menus - Doesn't work in macOS
 	/* 	newSensorItem := fyne.NewMenuItem("New", func() { log.Println("New Sensor Menu Item") })
 	   	addSensorItem := fyne.NewMenuItem("Add Sensor", func() { log.Println("Add Sensor Menu Item") })
 	   	removeSensorItem := fyne.NewMenuItem("Remove Sensor", func() { log.Println("Remove Sensor Menu Item") })
@@ -210,7 +216,6 @@ func main() {
 		selectSensorWindow.Show()
 	})
 
-	var selections []string
 	addActiveSensorsButton := widget.NewButton("Add Sensor(s)", func() {
 		addSensorWindow := a.NewWindow("Select Sensors to add to active list")
 		vlist := buildSensorList(availableSensors) // Get list of visible sensors
@@ -255,7 +260,7 @@ func main() {
 				for i := 0; i < len(selections); i++ {
 					// Get key for selected sensor - Key: field of value
 					key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
-					// Load widgets using selected sensor
+					// Delete sensor using selected key
 					if checkSensor(key, activeSensors) {
 						// Add sensors to activeSensors map - TBD
 						delete(activeSensors, key)
@@ -270,9 +275,88 @@ func main() {
 
 	})
 
+	listTopicsButton := widget.NewButton("Subscribed Topics", func() {
+		DisplayTopics(messages)
+		if !tflag {
+			topicWindow = a.NewWindow("Subscribed Topics")
+			// Get displayable list of subscribed topics
+			topicWindow.SetContent(TopicScroller)
+			topicWindow.SetOnClosed(func() {
+				tflag = false
+			})
+			tflag = true
+			topicWindow.Show()
+		} else {
+			topicWindow.Show()
+			tflag = true
+		}
+	})
+
+	addTopicButton := widget.NewButton("Add Topic", func() {
+		addTopicWindow := a.NewWindow("New Topic")
+		inputT := widget.NewEntry()
+		inputS := widget.NewEntry()
+		inputT.SetPlaceHolder("Topic")
+		inputS.SetPlaceHolder("Station")
+		addTopicContainer := container.NewVBox(
+			widget.NewLabel("Enter the full topic and its station name to which you want to subscribe."),
+			inputT,
+			inputS,
+			widget.NewButton("Submit", func() {
+				SetStatus(fmt.Sprintf("Added Topic: %s, Station: %s", inputT.Text, inputS.Text))
+				// Add input text to messages[]
+				var m Message
+				m.Topic = inputT.Text
+				m.Station = inputS.Text
+				key := rand.Int()
+				messages[key] = m
+				Client.Subscribe(m.Topic, 0, messageHandler)
+				SetStatus(fmt.Sprintf("Subscribed to Topic: %s", m.Topic))
+				addTopicWindow.Close()
+			}),
+		)
+		addTopicWindow.SetContent(addTopicContainer)
+		addTopicWindow.Show()
+	})
+
+	delTopicButton := widget.NewButton("Delete Topic", func() {
+		delTopicWindow := a.NewWindow("Delete Topic")
+		var choices []string
+		tlist := buildMessageList(messages)
+		for _, m := range tlist {
+			choices = append(choices, m.Display)
+		}
+		pickTopics := widget.NewCheckGroup(choices, func(c []string) {
+			selections = c
+		})
+		delTopicContainer := container.NewVBox(
+			widget.NewLabel("Select the topic you want to remove from subscribing."),
+			pickTopics,
+			widget.NewButton("Submit", func() {
+				for i := 0; i < len(selections); i++ {
+					j, err := strconv.ParseInt(strings.Split(selections[i], ":")[0], 10, 32) // Index of choice at head of string "0: ", "1: ", ...
+					check(err)
+					k := int(j) // k is index into the tlist array of []ChoicesIntKey where .Key is the Message key
+					// Verify message is in map before rying to delete
+					if checkMessage(tlist[k].Key, messages) {
+						// Delete using key
+						key := tlist[k].Key
+						unsubscribe(Client, messages[key])
+						// SetStatus(fmt.Sprintf("Unsubscribed from topic: %s", messages[key].Topic))
+						delete(messages, key)
+					}
+				}
+				delTopicWindow.Close()
+			}),
+		)
+		delTopicWindow.SetContent(delTopicContainer)
+		delTopicWindow.Show()
+	})
+
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
 	WeatherScroller.SetMinSize(fyne.NewSize(700, 500))
 	SensorScroller.SetMinSize(fyne.NewSize(550, 500))
+	TopicScroller.SetMinSize(fyne.NewSize(300, 200))
 
 	buttonContainer = container.NewHBox(
 		displaySensors,
@@ -280,6 +364,9 @@ func main() {
 		addActiveSensorsButton,
 		editSensorButton,
 		removeActiveSensorsButton,
+		listTopicsButton,
+		addTopicButton,
+		delTopicButton,
 		exitButton,
 		toggleDataLogging,
 	)
@@ -314,8 +401,8 @@ func main() {
 	//**********************************
 	// Initialize MQTT client
 	//**********************************
-	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
+	Client = mqtt.NewClient(opts)
+	if token := Client.Connect(); token.Wait() && token.Error() != nil {
 		SetStatus("Error connecting with broker. Closing program.")
 		log.Println("Error connecting with broker. Closing program.")
 		panic(token.Error())
@@ -335,6 +422,16 @@ func check(e error) {
 		panic(e)
 	}
 }
+
+// deleteAtIndex - removes specific element from messages slice
+/* func deleteAtIndex(slice []Message, index int) []Message {
+	// Append function used to append elements to a slice
+	// first parameter as the slice to which the elements
+	// are to be added/appended second parameter is the
+	// element(s) to be appended into the slice
+	// return value as a slice
+	return append(slice[:index], slice[index+1:]...)
+} */
 
 func SetStatus(s string) {
 	status = s
@@ -379,6 +476,38 @@ func DisplayData(text string) {
 		WeatherScroller.ScrollToBottom()
 	}
 	WeatherDataDisp.Refresh()
+}
+
+// DisplayTopics - Call this function to display a list of topics in a scrolling window
+func DisplayTopics(t map[int]Message) {
+	TopicDisplay.RemoveAll()
+	header := fmt.Sprintf("Number of Subscribed Topics = %d", len(t))
+	TopicDisplay.Add(&canvas.Text{
+		Text:      header,
+		Color:     color.Black,
+		TextSize:  12,
+		TextStyle: fyne.TextStyle{Monospace: true},
+	})
+	for m := range t {
+		msg := t[m]
+		text := msg.Topic
+		TopicDisplay.Add(&canvas.Text{
+			Text:      text,
+			Color:     color.Black,
+			TextSize:  12,
+			TextStyle: fyne.TextStyle{Monospace: true},
+		})
+	}
+
+	if len(TopicDisplay.Objects) > 100 {
+		TopicDisplay.Remove(TopicDisplay.Objects[0])
+	}
+	delta := (TopicDisplay.Size().Height - TopicScroller.Size().Height) - TopicScroller.Offset.Y
+
+	if delta < 100 {
+		TopicScroller.ScrollToBottom()
+	}
+	TopicDisplay.Refresh()
 }
 
 // DisplaySensors - First, erase previously displayed list
