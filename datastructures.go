@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"strconv"
+
+	"fyne.io/fyne/v2"
 )
 
 type WeatherDataRaw struct {
@@ -96,8 +98,25 @@ type ChoicesIntKey struct {
 	Display string // String to display in selection menu
 }
 
+type DisplaySensorData struct {
+	SensorKey        string
+	SensorName       string
+	LatestUpdate     string
+	LatestTemp       float64
+	LatestHumidity   float64
+	HighTemp         float64
+	LowTemp          float64
+	HighHumidity     float64
+	LowHumidity      float64
+	DisplayContainer *fyne.Container // Pointer to the container holding all the display elements. Could be a widget.
+}
+
+// This slice will maintain the list of display structures for sensors we want to show in the window
+// A maximum of 9 are supported so that the size of the digits will be legible on a screen
+var DisplayStack = make([]*DisplaySensorData, 0, 9) // Create a slice of 9 pointers to DisplaySensorData structures
+
 /**********************************************************************************
- *	Data Structures
+ *	Data Structure Functions
  **********************************************************************************/
 
 func (wd *WeatherData) GetSensorFromData() Sensor {
