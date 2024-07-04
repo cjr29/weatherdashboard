@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"sort"
 	"strconv"
 
 	"fyne.io/fyne/v2"
@@ -41,9 +43,9 @@ type WeatherData struct {
 	Temperature_F  float64 `json:"temperature_F"` //69.4
 	Humidity       float64 `json:"humidity"`      // Can appear as integer or a decimal value
 	Mic            string  `json:"mic"`           //"CHECKSUM"
-	Station        string  // Sensor station
-	SensorName     string
-	SensorLocation string
+	Station        string  `json:"station"`       // Sensor station
+	SensorName     string  `json:"sensorName"`
+	SensorLocation string  `json:"sensorLocation"`
 }
 
 type Sensor struct {
@@ -56,6 +58,7 @@ type Sensor struct {
 	Location  string `json:"Location"` // Optional location of sensor
 	DateAdded string `json:"DateAdded"`
 	LastEdit  string `json:"LastEdit"`
+	Hide      bool   `json:"Hide"` // If set true, do not include in the list of weatherWidgets in dashboard
 }
 
 type Broker struct {
@@ -66,9 +69,10 @@ type Broker struct {
 }
 
 var (
-	availableSensors = make(map[string]Sensor) // Visible sensors table, no dups allowed
-	activeSensors    = make(map[string]Sensor) // Active sensors table
-	messages         = make(map[int]Message)   // Topics to be subscribed
+	availableSensors = make(map[string]*Sensor)        // Visible sensors table, no dups allowed
+	activeSensors    = make(map[string]*Sensor)        // Active sensors table, indirect
+	messages         = make(map[int]Message)           // Topics to be subscribed
+	weatherWidgets   = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
 )
 
 var brokers = []Broker{
@@ -101,6 +105,7 @@ type ChoicesIntKey struct {
 type DisplaySensorData struct {
 	SensorKey        string
 	SensorName       string
+	SensorStation    string
 	LatestUpdate     string
 	LatestTemp       float64
 	LatestHumidity   float64
@@ -110,10 +115,6 @@ type DisplaySensorData struct {
 	LowHumidity      float64
 	DisplayContainer *fyne.Container // Pointer to the container holding all the display elements. Could be a widget.
 }
-
-// This slice will maintain the list of display structures for sensors we want to show in the window
-// A maximum of 9 are supported so that the size of the digits will be legible on a screen
-var DisplayStack = make([]*DisplaySensorData, 0, 9) // Create a slice of 9 pointers to DisplaySensorData structures
 
 /**********************************************************************************
  *	Data Structure Functions
@@ -127,6 +128,7 @@ func (wd *WeatherData) GetSensorFromData() Sensor {
 	s.Id = wd.Id
 	s.Channel = wd.Channel
 	s.Name = ""
+	s.Station = ""
 	s.Location = ""
 	s.DateAdded = wd.Time
 	s.LastEdit = wd.Time
@@ -163,6 +165,7 @@ func (s *Sensor) FormatSensor(style int) string {
 			str = str + "   Station: " + s.Station + "\n"
 			str = str + "   Name: " + s.Name + "\n"
 			str = str + "   Location: " + s.Location + "\n"
+			str = str + "   Hidden: " + fmt.Sprintf("%t", s.Hide) + "\n"
 			str = str + "   Model: " + s.Model + "\n"
 			str = str + "   Id: " + strconv.Itoa(s.Id) + "\n"
 			str = str + "   Channel: " + s.Channel + "\n"
@@ -176,6 +179,7 @@ func (s *Sensor) FormatSensor(style int) string {
 			str := "Station: " + s.Station + ","
 			str = str + "Name: " + s.Name + ","
 			str = str + "Location: " + s.Location + ","
+			str = str + "   Hidden: " + fmt.Sprintf("%t", s.Hide) + ","
 			str = str + "Model: " + s.Model + ","
 			str = str + "Id: " + strconv.Itoa(s.Id) + ","
 			str = str + "Channel: " + s.Channel + ","
@@ -213,4 +217,28 @@ func (m *Message) FormatMessage(style int) string {
 			return "No format specified for topic."
 		}
 	}
+}
+
+// SortActiveSensors
+func sortActiveSensors() (sortedSensorKeys []string) {
+
+	keys := make([]string, 0, len(activeSensors))
+
+	// Build array of sensor keys to be sorted
+	for key := range activeSensors {
+		keys = append(keys, key)
+	}
+
+	// Sort the sensor key array using the Station and Name from each sensor
+	sort.SliceStable(keys, func(i, j int) bool {
+		s1 := activeSensors[keys[i]].Station + ":" + activeSensors[keys[i]].Name
+		s2 := activeSensors[keys[j]].Station + ":" + activeSensors[keys[j]].Name
+		return s1 < s2
+	})
+
+	// for _, k := range keys {
+	// 	fmt.Println(k)
+	// }
+
+	return keys
 }

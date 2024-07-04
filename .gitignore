@@ -4,7 +4,6 @@ weatherdashboard
 *.dll
 *.so
 *.dylib
-go6502
 *.bin
 *.map
 *.numbers
@@ -13,6 +12,8 @@ go6502
 *.ini
 *.yaml
 *.json
+*.sav
+*.oldv1
 
 # Test binary, built with `go test -c`
 *.test

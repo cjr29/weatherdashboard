@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"strconv"
@@ -25,50 +26,63 @@ const (
 	HHMMSS24h = "15:04:05"
 	// 12h hh:mm:ss: 2:23:20 PM
 )
+const widgetPadding float32 = 5 // separation between widgets
+const numColumns = 5
 
 var (
-	a                   fyne.App
-	Client              mqtt.Client
-	status              string
-	incoming            WeatherDataRaw
-	outgoing            WeatherData
-	Console             = container.NewVBox()
-	ConsoleScroller     = container.NewVScroll(Console)
-	WeatherDataDisp     = container.NewVBox()
-	WeatherScroller     = container.NewVScroll(WeatherDataDisp)
-	SensorDisplay       = container.NewVBox()
-	SensorScroller      = container.NewVScroll(SensorDisplay)
-	TopicDisplay        = container.NewVBox()
-	TopicScroller       = container.NewVScroll(TopicDisplay)
+	a               fyne.App
+	Client          mqtt.Client
+	status          string
+	Console         = container.NewVBox()
+	ConsoleScroller = container.NewVScroll(Console)
+	WeatherDataDisp = container.NewVBox()
+	WeatherScroller = container.NewVScroll(WeatherDataDisp)
+	SensorDisplay   = container.NewVBox()
+	SensorScroller  = container.NewVScroll(SensorDisplay)
+	SensorDisplay2  = container.NewVBox()
+	SensorScroller2 = container.NewVScroll(SensorDisplay2)
+	TopicDisplay    = container.NewVBox()
+	TopicScroller   = container.NewVScroll(TopicDisplay)
+
 	EditSensorContainer *fyne.Container
 	statusContainer     *fyne.Container
-	buttonContainer     *fyne.Container
-	dashboardContainer  *fyne.Container
-	dataWindow          fyne.Window
-	sensorWindow        fyne.Window
-	selectSensorWindow  fyne.Window
-	editSensorWindow    fyne.Window
-	topicWindow         fyne.Window
-	dashboardWindow     fyne.Window
-	swflag              bool          = false // Sensor window flag. If true, window has been initilized.
-	ddflag              bool          = false // Data display flag. If true, window has been initialized.
-	tflag               bool          = false // Topic display flag. If true, window has been initialized
-	cancelEdit          bool          = false // Set to true to cancel current edit
-	s_Station_widget    *widget.Entry = widget.NewEntry()
-	s_Name_widget       *widget.Entry = widget.NewEntry()
-	s_Location_widget   *widget.Entry = widget.NewEntry()
-	s_Model_widget      *widget.Label = widget.NewLabel("")
-	s_Id_widget         *widget.Label = widget.NewLabel("")
-	s_Channel_widget    *widget.Label = widget.NewLabel("")
-	s_LastEdit_widget   *widget.Label = widget.NewLabel("")
-	selectedValue       string        = ""
-	logdata_flg         bool          = false
-	selections          []string
-	sav_Station         string // to restore in case of edit cancel
-	sav_Name            string
-	sav_Location        string
+	//buttonContainer     *fyne.Container
+	dashboardContainer *fyne.Container
+	dataWindow         fyne.Window
+	sensorWindow       fyne.Window
+	sensorWindow2      fyne.Window
+	selectSensorWindow fyne.Window
+	editSensorWindow   fyne.Window
+	topicWindow        fyne.Window
+	dashboardWindow    fyne.Window
+	swflag             bool          = false // Sensor window flag. If true, window has been initilized.
+	swflag2            bool          = false // Sensor window2 flag. If true, window has been initilized.
+	ddflag             bool          = false // Data display flag. If true, window has been initialized.
+	tflag              bool          = false // Topic display flag. If true, window has been initialized
+	hideflag           bool          = false // Used by hideWidgetHandler DO NOT DELETE!
+	cancelEdit         bool          = false // Set to true to cancel current edit
+	s_Station_widget   *widget.Entry = widget.NewEntry()
+	s_Name_widget      *widget.Entry = widget.NewEntry()
+	s_Location_widget  *widget.Entry = widget.NewEntry()
+	s_Model_widget     *widget.Label = widget.NewLabel("")
+	s_Id_widget        *widget.Label = widget.NewLabel("")
+	s_Channel_widget   *widget.Label = widget.NewLabel("")
+	s_LastEdit_widget  *widget.Label = widget.NewLabel("")
+	s_Hide_widget      *widget.Check = widget.NewCheck("Check to hide sensor on weather dashboard", hideWidgetHandler)
+	selectedValue      string        = ""
+	logdata_flg        bool          = false
+	selections         []string
+	sav_Station        string // to restore in case of edit cancel
+	sav_Name           string
+	sav_Location       string
+	sav_Hide           bool
 )
 
+//*************************************************
+// Menu action handlers
+//*************************************************
+
+// HANDLER FOR EDIT ACTIVE SENSOR
 var selectionHandler = func(value string) {
 	selectedValue = value
 	// Get key for selected sensor - Key: field of value
@@ -78,12 +92,14 @@ var selectionHandler = func(value string) {
 	sav_Station = s.Station
 	sav_Name = s.Name
 	sav_Location = s.Location
+	sav_Hide = s.Hide
 	s_Station_widget.SetText(s.Station)
 	s_Station_widget.SetPlaceHolder("Home")
 	s_Name_widget.SetText(s.Name)
 	s_Name_widget.SetPlaceHolder("Name")
 	s_Location_widget.SetText(s.Location)
 	s_Location_widget.SetPlaceHolder("Location")
+	s_Hide_widget.SetChecked(s.Hide)
 	s_Model_widget.SetText(s.Model)
 	s_Id_widget.SetText(strconv.Itoa(s.Id))
 	s_Channel_widget.SetText(s.Channel)
@@ -102,20 +118,36 @@ var selectionHandler = func(value string) {
 			s_Station_widget.SetText(sav_Station)
 			s_Name_widget.SetText(sav_Name)
 			s_Location_widget.SetText(sav_Location)
+			s_Hide_widget.SetChecked(sav_Hide)
 			editSensorWindow.Close()
 			return
 		}
 		// Save updated record back to activeSensors
+		// First be sure that there is a widget record. User may have cleared the Hide flag, expecting a new sensor to display
+		if !checkWeatherWidget(key) {
+			// Sensor doesn't exist, regenerate the weather widgets
+			generateWeatherWidgets()
+			dashboardContainer.Refresh()
+		}
+		SetStatus(fmt.Sprintf("Saving updated sensor record: %s", s_Name_widget.Text+":"+key))
 		s.Station = s_Station_widget.Text
 		s.Name = s_Name_widget.Text
 		s.Location = s_Location_widget.Text
+		s.Hide = s_Hide_widget.Checked
 		s.LastEdit = st
 		activeSensors[key] = s
+		weatherWidgets[key].Refresh()
+		dashboardContainer.Refresh()
 		editSensorWindow.Close()
 	})
 	editSensorWindow.Show()
 }
 
+var hideWidgetHandler = func(value bool) {
+	hideflag = value
+}
+
+// LIST ACTIVE SENSORS
 var listSensorsHandler = func() {
 	// Get displayable list of sensors
 	if !swflag {
@@ -134,6 +166,26 @@ var listSensorsHandler = func() {
 	}
 }
 
+// LIST AVAILABLE SENSORS
+var listAvailableSensorsHandler = func() {
+	// Get displayable list of sensors
+	if !swflag2 {
+		sensorWindow2 = a.NewWindow("Available Sensors")
+		DisplaySensors2(availableSensors)
+		sensorWindow2.SetContent(SensorScroller2)
+		sensorWindow2.SetOnClosed(func() {
+			swflag2 = false
+		})
+		swflag2 = true
+		sensorWindow2.Show()
+	} else {
+		DisplaySensors2(availableSensors)
+		sensorWindow2.Show()
+		swflag2 = true
+	}
+}
+
+// ADD ACTIVE SENSOR
 var addSensorHandler = func() {
 	addSensorWindow := a.NewWindow("Select Sensors to add to active list")
 	vlist := buildSensorList(availableSensors) // Get list of visible sensors
@@ -150,9 +202,11 @@ var addSensorHandler = func() {
 				// Get key for selected sensor - Key: field of value
 				key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
 				// Load widgets using selected sensor
-				if checkSensor(key, availableSensors) {
+				if checkSensor(key, availableSensors) && !availableSensors[key].Hide {
 					// Add sensors to activeSensors map - TBD
-					activeSensors[key] = availableSensors[key]
+					s := *availableSensors[key]
+					activeSensors[key] = &s
+					dashboardContainer.Refresh()
 					SetStatus(fmt.Sprintf("Added sensor to active sensors: %s", key))
 				}
 			}
@@ -163,6 +217,7 @@ var addSensorHandler = func() {
 	addSensorWindow.Show()
 }
 
+// EDIT ACTIVE SENSOR
 var editSensorHandler = func() {
 	selectSensorWindow = a.NewWindow("Select a Sensor to edit from the Active Sensors list")
 	vlist := buildSensorList(activeSensors) // Get list of visible sensors
@@ -174,15 +229,18 @@ var editSensorHandler = func() {
 	selectSensorWindow.Show()
 }
 
+// REMOVE ACTIVE SENSOR
 var removeSensorHandler = func() {
 	removeSensorWindow := a.NewWindow("Select Sensors to remove from active list")
 	vlist := buildSensorList(activeSensors) // Get list of active sensors
 	pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
 		selections = choices
 	})
+	removeSensorScroller := container.NewVScroll(
+		pickSensors,
+	)
 	removeSensorContainer := container.NewVBox(
 		widget.NewLabel("Select all sensors to be removed from the active sensors list"),
-		pickSensors,
 		widget.NewButton("Submit", func() {
 			// Process selected sensors and add to the active sensors map
 			for i := 0; i < len(selections); i++ {
@@ -193,15 +251,21 @@ var removeSensorHandler = func() {
 					// Add sensors to activeSensors map - TBD
 					delete(activeSensors, key)
 					SetStatus(fmt.Sprintf("Removed sensor from active sensors: %s", key))
+					if checkWeatherWidget(key) {
+						delete(weatherWidgets, key)
+						generateWeatherWidgets()
+					}
 				}
 			}
 			removeSensorWindow.Close()
 		}),
+		removeSensorScroller,
 	)
 	removeSensorWindow.SetContent(removeSensorContainer)
 	removeSensorWindow.Show()
 }
 
+// LIST TOPIC
 var listTopicsHandler = func() {
 	DisplayTopics(messages)
 	if !tflag {
@@ -219,6 +283,7 @@ var listTopicsHandler = func() {
 	}
 }
 
+// ADD TOPIC
 var addTopicHandler = func() {
 	addTopicWindow := a.NewWindow("New Topic")
 	inputT := widget.NewEntry()
@@ -246,6 +311,7 @@ var addTopicHandler = func() {
 	addTopicWindow.Show()
 }
 
+// REMOVE TOPIC
 var removeTopicHandler = func() {
 	delTopicWindow := a.NewWindow("Delete Topic")
 	var choices []string
@@ -308,10 +374,26 @@ var scrollDataHandler = func() {
 	}
 }
 
+// Opens a new window that displays climate data from selected sensors
 var dashboardHandler = func() {
 	dashboardWindow = a.NewWindow("Weather Dashboard")
+	dashboardContainer = container.NewGridWithColumns(numColumns)
+	// generateWeatherWidgets()
+	for _, ww := range weatherWidgets {
+		fmt.Printf("dashboardHandler:WeatherWidget: Key = %s, Name = %s\n", ww.sensorKey, ww.sensorName)
+
+	}
+	// Loop here to add all sensors to display in dashboard
+	keys := sortWeatherWidgets() // Display in columns sorted by Station and Name
+	for _, k := range keys {
+		weatherWidgets[k].Refresh()
+		dashboardContainer.Add(weatherWidgets[k])
+		// Start background widget update routine
+		go weatherWidgets[k].goHandler(k)
+	}
 	dashboardWindow.SetContent(dashboardContainer)
-	// dashboardWindow.SetMainMenu(weatherMenu)
+	numRows := float32(math.Round(float64(len(weatherWidgets)) / float64(numColumns)))
+	dashboardWindow.Resize(fyne.NewSize((widgetSizeX+widgetPadding)*float32(numColumns), (widgetSizeY+widgetPadding)*numRows))
 	dashboardWindow.Show()
 }
 
@@ -341,19 +423,25 @@ func main() {
 
 	//**********************************
 	// Menus
-	listActiveSensorsItem := fyne.NewMenuItem("List", listSensorsHandler)
-	addActiveSensorItem := fyne.NewMenuItem("Add Sensor", addSensorHandler)
-	removeActiveSensorItem := fyne.NewMenuItem("Remove Sensor", removeSensorHandler)
-	editActiveSensorItem := fyne.NewMenuItem("Edit Sensor", editSensorHandler)
-	sensorMenu := fyne.NewMenu("Sensors", listActiveSensorsItem, addActiveSensorItem, editActiveSensorItem, removeActiveSensorItem)
+	listActiveSensorsItem := fyne.NewMenuItem("List Active Sensors", listSensorsHandler)
+	listAvailableSensorsItem := fyne.NewMenuItem("List Available Sensors", listAvailableSensorsHandler)
+	addActiveSensorItem := fyne.NewMenuItem("Add Active Sensor", addSensorHandler)
+	removeActiveSensorItem := fyne.NewMenuItem("Remove Active Sensor", removeSensorHandler)
+	editActiveSensorItem := fyne.NewMenuItem("Edit Active Sensor", editSensorHandler)
+	sensorMenu := fyne.NewMenu("Sensors",
+		listActiveSensorsItem,
+		listAvailableSensorsItem,
+		addActiveSensorItem,
+		editActiveSensorItem,
+		removeActiveSensorItem)
 
 	listTopicsItem := fyne.NewMenuItem("List", listTopicsHandler)
 	addTopicItem := fyne.NewMenuItem("New", addTopicHandler)
 	removeTopicItem := fyne.NewMenuItem("Remove", removeTopicHandler)
 	topicMenu := fyne.NewMenu("Topics", listTopicsItem, addTopicItem, removeTopicItem)
 
-	dataDisplayItem := fyne.NewMenuItem("Weather", scrollDataHandler)
-	dashboardItem := fyne.NewMenuItem("Dashboard", dashboardHandler)
+	dataDisplayItem := fyne.NewMenuItem("Weather Data Scroller", scrollDataHandler)
+	dashboardItem := fyne.NewMenuItem("Dashboard Widgets", dashboardHandler)
 	dataMenuSeparator := fyne.NewMenuItemSeparator()
 	toggleDataLoggingOnItem := fyne.NewMenuItem("Data Logging On", dataLoggingOnHandler)
 	toggleDataLoggingOffItem := fyne.NewMenuItem("DataLogging Off", dataLoggingOffHandler)
@@ -365,110 +453,23 @@ func main() {
 		toggleDataLoggingOffItem,
 	)
 
-	exitItem := fyne.NewMenuItem("Exit", exitHandler)
-	fileMenu := fyne.NewMenu("File", exitItem)
-
-	menu := fyne.NewMainMenu(fileMenu, weatherMenu, sensorMenu, topicMenu)
+	menu := fyne.NewMainMenu(weatherMenu, sensorMenu, topicMenu)
 
 	w.SetMainMenu(menu)
 	menu.Refresh()
 
 	//*************************************************
-	// Buttons & Containers
-
-	/* 	exitButton := widget.NewButton("Exit", func() {
-		// Close data files
-		for _, d := range dataFiles {
-			d.file.Sync()
-			d.file.Close()
-		}
-
-		// Output current configuration for later reload
-		writeConfig()
-
-		// Now, exit program
-		os.Exit(0)
-	}) */
-
-	/*
-	 * Set up display window
-	 */
-	// exitItem := fyne.NewMenuItem("Exit", func() { log.Println("Exit") })
-	// fileMenu := fyne.NewMenu("File", exitItem)
-	// weatherMenu := fyne.NewMainMenu(fileMenu)
-	header := canvas.NewText("Header", color.Black)
-	header.TextSize = 36
-	header.Move(fyne.NewPos(335, 6))
-	frame := canvas.NewRectangle(color.RGBA{R: 202, G: 230, B: 243, A: 255})
-	frame.FillColor = color.RGBA{R: 202, G: 230, B: 243, A: 255}
-	frame.StrokeColor = color.RGBA{R: 202, G: 230, B: 243, A: 255}
-	frame.SetMinSize(fyne.NewSize(800, 500))
-
-	dashboardContainer = container.NewWithoutLayout(
-		frame,
-		header,
-	)
-
-	/* 	dashboardButton := widget.NewButton("Dashboard", func() {
-		dashboardWindow = a.NewWindow("Weather Dashboard")
-		dashboardWindow.SetContent(dashboardContainer)
-		// dashboardWindow.SetMainMenu(weatherMenu)
-		dashboardWindow.Show()
-
-	}) */
-
-	// Display a box to check to turn data logging on and off
-	/* 	toggleDataLogging := widget.NewCheck("Log Data", func(b bool) {
-		if b {
-			logdata_flg = true
-			SetStatus("Data logging turned on")
-		} else {
-			logdata_flg = false
-			SetStatus("Data logging turned off")
-		}
-	}) */
-
-	/*	displaySensors := widget.NewButton("Active Sensors", listSensorsHandler)
-		 	func() {
-			// Get displayable list of sensors
-			if !swflag {
-				sensorWindow = a.NewWindow("Active Sensors")
-				DisplaySensors(activeSensors)
-				sensorWindow.SetContent(SensorScroller)
-				sensorWindow.SetOnClosed(func() {
-					swflag = false
-				})
-				swflag = true
-				sensorWindow.Show()
-			} else {
-				DisplaySensors(activeSensors)
-				sensorWindow.Show()
-				swflag = true
-			}
-		}) */
-
-	/* 	dataDisplay := widget.NewButton("Data", func() {
-		if !ddflag {
-			dataWindow = a.NewWindow("Weather Data From Sensors")
-			dataWindow.SetContent(WeatherScroller)
-			dataWindow.SetOnClosed(func() {
-				ddflag = false
-			})
-			ddflag = true
-			dataWindow.Show()
-		} else {
-			dataWindow.Show()
-			ddflag = true
-		}
-	}) */
+	// Containers
+	//*************************************************
 
 	// editSensor
 	//
 	EditSensorContainer = container.NewVBox(
-		widget.NewLabel("Update Home, Name, and Location, then press Submit to save."),
+		widget.NewLabel("Update Home, Name, Location, and Visibility, then press Submit to save."),
 		s_Station_widget,
 		s_Name_widget,
 		s_Location_widget,
+		s_Hide_widget,
 		s_Model_widget,
 		s_Id_widget,
 		s_Channel_widget,
@@ -483,170 +484,11 @@ func main() {
 		}),
 	)
 
-	/* 	editSensorButton := widget.NewButton("Edit Sensor", func() {
-		selectSensorWindow = a.NewWindow("Select a Sensor to edit from the Active Sensors list")
-		vlist := buildSensorList(activeSensors) // Get list of visible sensors
-		pickSensor := widget.NewSelect(vlist, selectionHandler)
-		header := widget.NewLabel("Pick a sensor to edit. Use the toggle to scroll through active sensors to find sensor to edit. ***************************" +
-			"******************************************")
-		pickSensorContainer := container.NewVBox(header, pickSensor)
-		selectSensorWindow.SetContent(pickSensorContainer)
-		selectSensorWindow.Show()
-	}) */
-
-	/* 	addActiveSensorsButton := widget.NewButton("Add Sensor(s)", func() {
-		addSensorWindow := a.NewWindow("Select Sensors to add to active list")
-		vlist := buildSensorList(availableSensors) // Get list of visible sensors
-		pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
-			selections = choices
-		})
-		addSensorContainer := container.NewVBox(
-			widget.NewLabel("Select all sensors to be added to the active sensors list"),
-			pickSensors,
-			widget.NewButton("Submit", func() {
-				// SetStatus("Submit pressed to add selected sensors to active list.")
-				// Process selected sensors and add to the active sensors map
-				for i := 0; i < len(selections); i++ {
-					// Get key for selected sensor - Key: field of value
-					key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
-					// Load widgets using selected sensor
-					if checkSensor(key, availableSensors) {
-						// Add sensors to activeSensors map - TBD
-						activeSensors[key] = availableSensors[key]
-						SetStatus(fmt.Sprintf("Added sensor to active sensors: %s", key))
-					}
-				}
-				addSensorWindow.Close()
-			}),
-		)
-		addSensorWindow.SetContent(addSensorContainer)
-		addSensorWindow.Show()
-	}) */
-
-	/* 	removeActiveSensorsButton := widget.NewButton("Remove Sensor(s)", func() {
-		removeSensorWindow := a.NewWindow("Select Sensors to remove from active list")
-		vlist := buildSensorList(activeSensors) // Get list of active sensors
-		pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
-			selections = choices
-		})
-		removeSensorContainer := container.NewVBox(
-			widget.NewLabel("Select all sensors to be removed from the active sensors list"),
-			pickSensors,
-			widget.NewButton("Submit", func() {
-				// Process selected sensors and add to the active sensors map
-				for i := 0; i < len(selections); i++ {
-					// Get key for selected sensor - Key: field of value
-					key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
-					// Delete sensor using selected key
-					if checkSensor(key, activeSensors) {
-						// Add sensors to activeSensors map - TBD
-						delete(activeSensors, key)
-						SetStatus(fmt.Sprintf("Removed sensor from active sensors: %s", key))
-					}
-				}
-				removeSensorWindow.Close()
-			}),
-		)
-		removeSensorWindow.SetContent(removeSensorContainer)
-		removeSensorWindow.Show()
-
-	}) */
-
-	/* 	listTopicsButton := widget.NewButton("Subscribed Topics", func() {
-		DisplayTopics(messages)
-		if !tflag {
-			topicWindow = a.NewWindow("Subscribed Topics")
-			// Get displayable list of subscribed topics
-			topicWindow.SetContent(TopicScroller)
-			topicWindow.SetOnClosed(func() {
-				tflag = false
-			})
-			tflag = true
-			topicWindow.Show()
-		} else {
-			topicWindow.Show()
-			tflag = true
-		}
-	}) */
-
-	/* 	addTopicButton := widget.NewButton("Add Topic", func() {
-		addTopicWindow := a.NewWindow("New Topic")
-		inputT := widget.NewEntry()
-		inputS := widget.NewEntry()
-		inputT.SetPlaceHolder("Topic")
-		inputS.SetPlaceHolder("Station")
-		addTopicContainer := container.NewVBox(
-			widget.NewLabel("Enter the full topic and its station name to which you want to subscribe."),
-			inputT,
-			inputS,
-			widget.NewButton("Submit", func() {
-				SetStatus(fmt.Sprintf("Added Topic: %s, Station: %s", inputT.Text, inputS.Text))
-				// Add input text to messages[]
-				var m Message
-				m.Topic = inputT.Text
-				m.Station = inputS.Text
-				key := rand.Int()
-				messages[key] = m
-				Client.Subscribe(m.Topic, 0, messageHandler)
-				SetStatus(fmt.Sprintf("Subscribed to Topic: %s", m.Topic))
-				addTopicWindow.Close()
-			}),
-		)
-		addTopicWindow.SetContent(addTopicContainer)
-		addTopicWindow.Show()
-	}) */
-
-	/* 	delTopicButton := widget.NewButton("Delete Topic", func() {
-		delTopicWindow := a.NewWindow("Delete Topic")
-		var choices []string
-		tlist := buildMessageList(messages)
-		for _, m := range tlist {
-			choices = append(choices, m.Display)
-		}
-		pickTopics := widget.NewCheckGroup(choices, func(c []string) {
-			selections = c
-		})
-		delTopicContainer := container.NewVBox(
-			widget.NewLabel("Select the topic you want to remove from subscribing."),
-			pickTopics,
-			widget.NewButton("Submit", func() {
-				for i := 0; i < len(selections); i++ {
-					j, err := strconv.ParseInt(strings.Split(selections[i], ":")[0], 10, 32) // Index of choice at head of string "0: ", "1: ", ...
-					check(err)
-					k := int(j) // k is index into the tlist array of []ChoicesIntKey where .Key is the Message key
-					// Verify message is in map before rying to delete
-					if checkMessage(tlist[k].Key, messages) {
-						// Delete using key
-						key := tlist[k].Key
-						unsubscribe(Client, messages[key])
-						delete(messages, key)
-					}
-				}
-				delTopicWindow.Close()
-			}),
-		)
-		delTopicWindow.SetContent(delTopicContainer)
-		delTopicWindow.Show()
-	}) */
-
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
 	WeatherScroller.SetMinSize(fyne.NewSize(700, 500))
 	SensorScroller.SetMinSize(fyne.NewSize(550, 500))
+	SensorScroller2.SetMinSize(fyne.NewSize(550, 500))
 	TopicScroller.SetMinSize(fyne.NewSize(300, 200))
-
-	/* 	buttonContainer = container.NewHBox(
-		// displaySensors,
-		// dataDisplay,
-		// addActiveSensorsButton,
-		// editSensorButton,
-		// removeActiveSensorsButton,
-		// listTopicsButton,
-		// addTopicButton,
-		// delTopicButton,
-		// exitButton,
-		// dashboardButton,
-		// toggleDataLogging,
-	) */
 
 	statusContainer = container.NewVBox(
 		ConsoleScroller,
@@ -658,6 +500,7 @@ func main() {
 		statusContainer,
 	)
 
+	// Put main container in the primary window
 	w.SetContent(mainContainer)
 
 	//**********************************
@@ -684,14 +527,30 @@ func main() {
 		log.Println("Error connecting with broker. Closing program.")
 		panic(token.Error())
 	}
-	SetStatus(fmt.Sprintf("Client connected to broker %s", brokers[0].Path+":"+strconv.Itoa(brokers[0].Port)))
+	t := time.Now().Local()
+	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
+	SetStatus(fmt.Sprintf("%s : Client connected to broker %s", st, brokers[0].Path+":"+strconv.Itoa(brokers[0].Port)))
 
 	//**********************************
 	// Turn over control to the GUI
 	//**********************************
+	generateWeatherWidgets()
+	w.SetOnClosed(exitHandler)
+
+	// Delay 10 seconds while starting background processes
+	// fmt.Println("Waiting 10 seconds while background processes start...")
+	// time.Sleep(10 * time.Second)
 
 	w.ShowAndRun()
+
+	//*************************************************
+	// Program blocked until GUI closes
+	//*************************************************
 }
+
+//*************************************************
+// Support functions
+//*************************************************
 
 func check(e error) {
 	if e != nil {
@@ -700,9 +559,37 @@ func check(e error) {
 	}
 }
 
+// SetStatus - publishes message on scrolling GUI status console
 func SetStatus(s string) {
 	status = s
 	ConsoleWrite(status)
+}
+
+// generateWeatherWidgets - reads active sensor table and creates widgets for each sensor
+//
+//	stores pointers to the widgets in the weatherWidgets array
+func generateWeatherWidgets() {
+	keys := sortActiveSensors()
+	for _, s := range keys {
+		// Only generate widget if sensor is not hidden
+		if !activeSensors[s].Hide {
+			newWidget := new(weatherWidget)
+			sens := activeSensors[s]
+			newWidget.Init(sens)
+			weatherWidgets[s] = newWidget
+		}
+	}
+	for _, ww := range weatherWidgets {
+		fmt.Printf("WeatherWidget: Key = %s, Name = %s\n", ww.sensorKey, ww.sensorName)
+	}
+}
+
+// checkWeatherWidget - Check if widget is available
+func checkWeatherWidget(key string) bool {
+	if _, ok := weatherWidgets[key]; ok {
+		return true
+	}
+	return false
 }
 
 // ConsoleWrite - call this function to write a string to the scrolling console status window
@@ -778,7 +665,7 @@ func DisplayTopics(t map[int]Message) {
 }
 
 // DisplaySensors - First, erase previously displayed list
-func DisplaySensors(m map[string]Sensor) {
+func DisplaySensors(m map[string]*Sensor) {
 	SensorDisplay.RemoveAll()
 	header := fmt.Sprintf("Number of Sensors = %d", len(m))
 	SensorDisplay.Add(&canvas.Text{
@@ -808,6 +695,40 @@ func DisplaySensors(m map[string]Sensor) {
 	SensorDisplay.Refresh()
 }
 
+// DisplayAvailableSensors - First, erase previously displayed list
+func DisplaySensors2(m map[string]*Sensor) {
+	SensorDisplay2.RemoveAll()
+	header := fmt.Sprintf("Number of Sensors = %d", len(m))
+	SensorDisplay2.Add(&canvas.Text{
+		Text:      header,
+		Color:     color.Black,
+		TextSize:  12,
+		TextStyle: fyne.TextStyle{Monospace: true},
+	})
+	for s := range m {
+		sens := m[s]
+		text := sens.FormatSensor(1)
+		SensorDisplay2.Add(&canvas.Text{
+			Text:      text,
+			Color:     color.Black,
+			TextSize:  12,
+			TextStyle: fyne.TextStyle{Monospace: true},
+		})
+	}
+	if len(SensorDisplay2.Objects) > 100 {
+		SensorDisplay2.Remove(SensorDisplay2.Objects[0])
+	}
+	delta := (SensorDisplay2.Size().Height - SensorScroller2.Size().Height) - SensorScroller2.Offset.Y
+
+	if delta < 100 {
+		SensorScroller2.ScrollToBottom()
+	}
+	SensorDisplay2.Refresh()
+}
+
+// UpdateAll - updates selected containers
 func UpdateAll() {
-	statusContainer.Refresh()
+	if dashboardContainer != nil {
+		dashboardContainer.Refresh()
+	}
 }

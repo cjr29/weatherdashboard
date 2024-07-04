@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -16,6 +17,9 @@ var opts = mqtt.NewClientOptions()
  **********************************************************************************/
 
 var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+	var incoming WeatherDataRaw
+	var outgoing WeatherData
+
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
 		SetStatus(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
@@ -29,18 +33,29 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 		if _, ok := availableSensors[skey]; !ok {
 			// Sensor not in available sensors map. Add it.
 			sens := outgoing.GetSensorFromData() // Create Sensor record
-			availableSensors[skey] = sens        // Add it to the visible sensors
+			availableSensors[skey] = &sens       // Add it to the visible sensors
 			SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
 		}
 	} else {
 		// Sensor is active, write record to output file
-		s := activeSensors[skey]
+		s := *activeSensors[skey]
 		outgoing.Station = s.Station
 		outgoing.SensorName = s.Name
 		outgoing.SensorLocation = s.Location
+		// Update Sensor's WeatherWidget if not hidden and widget exists
+		if checkWeatherWidget(skey) && !s.Hide {
+			// Put latest data in queue
+			ld := latestData{outgoing.Temperature_F, outgoing.Humidity, outgoing.Time}
+			go notifyWidget(ld, skey)
+			if dashboardContainer != nil {
+				dashboardContainer.Refresh()
+			}
+		}
+		// Log data if data logging is turned on
 		if logdata_flg {
 			writeWeatherData(outgoing)
 		}
+		// Always write record to the data display scrolling console
 		DisplayData(fmt.Sprintf("station: %s, sensor: %s, location: %s, temp: %.1f, humidity: %.1f, time: %s, model: %s, id: %d, channel: %s",
 			outgoing.Station, outgoing.SensorName, outgoing.SensorLocation, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time, outgoing.Model, outgoing.Id, outgoing.Channel))
 	}
@@ -51,7 +66,15 @@ var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	SetStatus("Connection to broker lost")
+	t := time.Now().Local()
+	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
+	SetStatus(fmt.Sprintf("%s : Connection to broker lost", st))
+}
+
+// Send channel message to goroutine to update widget. Runs once and quits.
+func notifyWidget(ld latestData, sensorKey string) {
+	latestDataQueue[sensorKey] = ld
+	weatherWidgets[sensorKey].channel <- sensorKey
 }
 
 func sub(client mqtt.Client) {
@@ -69,7 +92,6 @@ func unsubscribe(client mqtt.Client, msg Message) {
 }
 
 // UnmarshalJSON custom method for handling different types
-// of the amount field.
 func (t *CustomChannel) UnmarshalJSON(data []byte) error {
 	if string(data) == "null" || string(data) == `""` {
 		return nil
@@ -96,8 +118,8 @@ func (t *CustomChannel) UnmarshalJSON(data []byte) error {
 }
 
 // checkSensor - Check if sensor is in active sensor table
-func checkSensor(key string, m map[string]Sensor) bool {
-	if _, ok := m[key]; ok {
+func checkSensor(key string, s map[string]*Sensor) bool {
+	if _, ok := s[key]; ok {
 		return true
 	}
 	return false
@@ -112,10 +134,10 @@ func checkMessage(key int, m map[int]Message) bool {
 }
 
 // Create sensor list
-func buildSensorList(m map[string]Sensor) []string {
+func buildSensorList(m map[string]*Sensor) []string {
 	var list []string
 	for s := range m {
-		sens := m[s]
+		sens := *m[s]
 		list = append(list, sens.FormatSensor(1))
 	}
 	return list

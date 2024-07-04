@@ -79,10 +79,16 @@ func writeConfig() {
 // jsonOutput() - Write out all configuration options to a .json file
 func jsonOutput() (e error) {
 	// Declare a configuration structure composed of the structures and maps needed
+	var as = make(map[string]Sensor)
+	// retrive all current active sensors, making sure to dereference the address first!
+	for key := range activeSensors {
+		a := *activeSensors[key]
+		as[key] = a
+	}
 	c := Configuration{
 		Brokers:       brokers,
 		Messages:      messages,
-		ActiveSensors: activeSensors,
+		ActiveSensors: as,
 	}
 	data, _ := json.MarshalIndent(c, "", "    ")
 	err := os.WriteFile("config.json", data, 0644)
@@ -92,10 +98,16 @@ func jsonOutput() (e error) {
 // jsonInput() - Read configuration information from a .json file
 func jsonInput() (e error) {
 	// Declare a configuration structure composed of the structures and maps needed
+	var as map[string]Sensor
+
+	// for key := range activeSensors {
+	// 	a := *activeSensors[key]
+	// 	as = append(as, a)
+	// }
 	c := Configuration{
 		Brokers:       brokers,
 		Messages:      messages,
-		ActiveSensors: activeSensors,
+		ActiveSensors: as,
 	}
 
 	inidata, err := os.ReadFile("config.json")
@@ -110,17 +122,21 @@ func jsonInput() (e error) {
 		return err
 	}
 
-	brokers = nil
-
+	brokers = nil // Erase current list
 	// Copy the configuration information into the data structures.
 	brokers = append(brokers, c.Brokers...)
 
+	// Load the input messages
 	for key, value := range c.Messages {
 		messages[key] = value
 	}
 
-	for key, value := range c.ActiveSensors {
-		activeSensors[key] = value
+	// for _, value := range c.ActiveSensors {
+	// 	activeSensors[value.Key] = &value
+	// }
+	// Load the input sensors, being sure to store the address of the sensor, not the sensor
+	for _, value := range c.ActiveSensors {
+		activeSensors[value.Key] = &value
 	}
 
 	return nil
