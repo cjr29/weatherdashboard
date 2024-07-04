@@ -27,6 +27,10 @@ var wwHandler func(key string) = func(key string) {
 	// Loop forever
 	var c = weatherWidgets[key].channel
 	for {
+		// Kill yourself if widget has been removed
+		if weatherWidgets[key] == nil {
+			return
+		}
 		key := <-c
 		// fmt.Println("Received key: ", key)
 		// If weatherWidget is missing, return because no longer need this handler

@@ -55,6 +55,7 @@ var (
 	editSensorWindow   fyne.Window
 	topicWindow        fyne.Window
 	dashboardWindow    fyne.Window
+	dashFlag           bool          = false // Dashboard window flag. If true, window has been initialized.
 	swflag             bool          = false // Sensor window flag. If true, window has been initilized.
 	swflag2            bool          = false // Sensor window2 flag. If true, window has been initilized.
 	ddflag             bool          = false // Data display flag. If true, window has been initialized.
@@ -206,7 +207,7 @@ var addSensorHandler = func() {
 					// Add sensors to activeSensors map - TBD
 					s := *availableSensors[key]
 					activeSensors[key] = &s
-					dashboardContainer.Refresh()
+					reloadDashboard()
 					SetStatus(fmt.Sprintf("Added sensor to active sensors: %s", key))
 				}
 			}
@@ -251,10 +252,11 @@ var removeSensorHandler = func() {
 					// Add sensors to activeSensors map - TBD
 					delete(activeSensors, key)
 					SetStatus(fmt.Sprintf("Removed sensor from active sensors: %s", key))
-					if checkWeatherWidget(key) {
-						delete(weatherWidgets, key)
-						generateWeatherWidgets()
-					}
+					// if checkWeatherWidget(key) {
+					// 	delete(weatherWidgets, key)
+					// 	generateWeatherWidgets()
+					// }
+					reloadDashboard()
 				}
 			}
 			removeSensorWindow.Close()
@@ -374,26 +376,26 @@ var scrollDataHandler = func() {
 	}
 }
 
-// Opens a new window that displays climate data from selected sensors
+// Opens a new window that displays a dashboard of climate data from selected sensors
 var dashboardHandler = func() {
-	dashboardWindow = a.NewWindow("Weather Dashboard")
-	dashboardContainer = container.NewGridWithColumns(numColumns)
 	// generateWeatherWidgets()
-	for _, ww := range weatherWidgets {
-		fmt.Printf("dashboardHandler:WeatherWidget: Key = %s, Name = %s\n", ww.sensorKey, ww.sensorName)
+	// for _, ww := range weatherWidgets {
+	// 	fmt.Printf("dashboardHandler:WeatherWidget: Key = %s, Name = %s\n", ww.sensorKey, ww.sensorName)
 
-	}
+	// }
 	// Loop here to add all sensors to display in dashboard
-	keys := sortWeatherWidgets() // Display in columns sorted by Station and Name
-	for _, k := range keys {
-		weatherWidgets[k].Refresh()
-		dashboardContainer.Add(weatherWidgets[k])
-		// Start background widget update routine
-		go weatherWidgets[k].goHandler(k)
-	}
-	dashboardWindow.SetContent(dashboardContainer)
-	numRows := float32(math.Round(float64(len(weatherWidgets)) / float64(numColumns)))
-	dashboardWindow.Resize(fyne.NewSize((widgetSizeX+widgetPadding)*float32(numColumns), (widgetSizeY+widgetPadding)*numRows))
+	// keys := sortWeatherWidgets() // Display in columns sorted by Station and Name
+	// for _, k := range keys {
+	// 	weatherWidgets[k].Refresh()
+	// 	dashboardContainer.Add(weatherWidgets[k])
+	// 	// Start background widget update routine
+	// 	go weatherWidgets[k].goHandler(k)
+	// }
+	// dashboardWindow.SetContent(dashboardContainer)
+	// numRows := float32(math.Round(float64(len(weatherWidgets)) / float64(numColumns)))
+	// dashboardWindow.Resize(fyne.NewSize((widgetSizeX+widgetPadding)*float32(numColumns), (widgetSizeY+widgetPadding)*numRows))
+
+	reloadDashboard()
 	dashboardWindow.Show()
 }
 
@@ -590,6 +592,49 @@ func checkWeatherWidget(key string) bool {
 		return true
 	}
 	return false
+}
+
+// removeAllWeatherWidgets - Loops through map and removes all widgets
+//
+//	Allows the map to remain available to other processes
+func removeAllWeatherWidgets() {
+	for w := range weatherWidgets {
+		delete(weatherWidgets, w)
+	}
+}
+
+// reloadDashboard() - Regenerate and reload the dashboard container
+func reloadDashboard() {
+
+	// Empty dashboard container
+	// Create new window if one does't already exist
+	if !dashFlag {
+		dashboardWindow = a.NewWindow("Weather Dashboard")
+		dashFlag = true
+	}
+	dashboardContainer = container.NewGridWithColumns(numColumns)
+
+	// Delete existing weatherWidgets
+	removeAllWeatherWidgets()
+
+	// Regenerate weatherWidgets
+	generateWeatherWidgets()
+
+	// Load the container with the new widgets
+	keys := sortWeatherWidgets() // Display in columns sorted by Station and Name
+	for _, k := range keys {
+		weatherWidgets[k].Refresh()
+		dashboardContainer.Add(weatherWidgets[k])
+		// Start background widget update routine
+		go weatherWidgets[k].goHandler(k)
+	}
+	dashboardWindow.SetContent(dashboardContainer)
+	numRows := float32(math.Round(float64(len(weatherWidgets)) / float64(numColumns)))
+	dashboardWindow.Resize(fyne.NewSize((widgetSizeX+widgetPadding)*float32(numColumns), (widgetSizeY+widgetPadding)*numRows))
+
+	// Show the reloaded container in window
+	dashboardContainer.Refresh()
+	dashboardWindow.Show()
 }
 
 // ConsoleWrite - call this function to write a string to the scrolling console status window
