@@ -30,45 +30,7 @@ var wwHandler func(key string) = func(key string) {
 		if !checkWeatherWidget(key) {
 			return
 		}
-		// Get latest data
-		temp := latestDataQueue[key].Temp
-		humidity := latestDataQueue[key].Humidity
-		date := latestDataQueue[key].Date
-		// Write latest data into weather widget
-		// Sometimes, the temp is blank from the sensor, so check if 0.0, don't update
-		if temp != 0.0 {
-			weatherWidgets[key].temp = temp
-			latestDataQueue[key].Temp = temp
-			activeSensors[key].Temp = temp
-		}
-		if humidity != 0.0 {
-			weatherWidgets[key].humidity = humidity
-			latestDataQueue[key].Humidity = humidity
-			activeSensors[key].Humidity = humidity
-		}
-		weatherWidgets[key].latestUpdate = date
-		latestDataQueue[key].Date = date
-		// Calculate & update highs and lows
-		if temp > weatherWidgets[key].highTemp {
-			weatherWidgets[key].highTemp = temp
-			latestDataQueue[key].HighTemp = temp
-			activeSensors[key].HighTemp = temp
-		}
-		if temp < weatherWidgets[key].lowTemp {
-			weatherWidgets[key].lowTemp = temp
-			latestDataQueue[key].LowTemp = temp
-			activeSensors[key].LowTemp = temp
-		}
-		if humidity > weatherWidgets[key].highHumidity {
-			weatherWidgets[key].highHumidity = humidity
-			latestDataQueue[key].HighHumidity = humidity
-			activeSensors[key].HighHumidity = humidity
-		}
-		if humidity < weatherWidgets[key].lowHumidity {
-			weatherWidgets[key].lowHumidity = humidity
-			latestDataQueue[key].LowHumidity = humidity
-			activeSensors[key].LowHumidity = humidity
-		}
+
 		weatherWidgets[key].Refresh()
 	}
 }
@@ -250,18 +212,16 @@ func (ww *weatherWidget) Init(s *Sensor) {
 	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
 	s_LastEdit_widget.SetText(st)
 	ww.latestUpdate = st
-	// Load the latest data, which may have been loade from JSON on startup
-	ww.temp = latestDataQueue[s.Key].Temp
-	ww.humidity = latestDataQueue[s.Key].Humidity
-	ww.highHumidity = latestDataQueue[s.Key].HighHumidity
-	ww.lowHumidity = latestDataQueue[s.Key].LowHumidity
-	ww.highTemp = latestDataQueue[s.Key].HighTemp
-	ww.lowTemp = latestDataQueue[s.Key].LowTemp
-	ww.latestUpdate = latestDataQueue[s.Key].Date
+	ww.temp = activeSensors[s.Key].Temp
+	ww.humidity = activeSensors[s.Key].Humidity
+	ww.highHumidity = activeSensors[s.Key].HighHumidity
+	ww.lowHumidity = activeSensors[s.Key].LowHumidity
+	ww.highTemp = activeSensors[s.Key].HighTemp
+	ww.lowTemp = activeSensors[s.Key].LowTemp
+	ww.latestUpdate = activeSensors[s.Key].DataDate
 	wwc := make(chan string, 5) // Buffered channel for this sensor
 	ww.channel = wwc
 	ww.goHandler = wwHandler
-	//fmt.Println("Weather Widget channel initialized for ==> ", s.Key)
 }
 
 // sortWeatherWidgets

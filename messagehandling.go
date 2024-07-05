@@ -22,7 +22,8 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
-		SetStatus(fmt.Sprintf("Unable to unmarshal JSON due to %s", err))
+		fmt.Println("messageHandler: Unable to unmarshal JSON due to %s", err)
+		SetStatus(fmt.Sprintf("messageHandler: Unable to unmarshal JSON due to %s", err))
 	}
 	outgoing.CopyWDRtoWD(incoming)
 	outgoing.Station = strings.Split(msg.Topic(), "/")[0] // station, or home, is the first segment of the msg.Topic
@@ -45,13 +46,11 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 		outgoing.SensorLocation = s.Location
 		// Update Sensor's WeatherWidget if not hidden and widget exists
 		if checkWeatherWidget(skey) && !s.Hide {
-			// Put latest data in queue
-			ld := latestData{999.9, 999.9, "date", -999.9, 999.9, -999.9, 999.9}
-			ld.Temp = outgoing.Temperature_F
-			ld.Humidity = outgoing.Humidity
-			ld.Date = outgoing.Time
+			nd := newData{skey, outgoing.Temperature_F, outgoing.Humidity, outgoing.Time}
+			// Use a go routine to prevent blocking of this event handler
+			// Each incoming data record gets its own goroutine
+			go notifyWidget(nd)
 
-			go notifyWidget(&ld, skey)
 			if dashboardContainer != nil {
 				dashboardContainer.Refresh()
 			}
@@ -77,23 +76,52 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 }
 
 // Send channel message to goroutine to update widget. Runs once and quits.
-func notifyWidget(ld *latestData, sensorKey string) {
-	latestDataQueue[sensorKey].Temp = ld.Temp
-	latestDataQueue[sensorKey].Humidity = ld.Humidity
-	// latestDataQueue[sensorKey].HighTemp = ld.HighTemp
-	// latestDataQueue[sensorKey].LowTemp = ld.LowTemp
-	// latestDataQueue[sensorKey].HighHumidity = ld.HighHumidity
-	// latestDataQueue[sensorKey].LowHumidity = ld.LowHumidity
-	latestDataQueue[sensorKey].Date = ld.Date
-	activeSensors[sensorKey].Temp = ld.Temp
-	activeSensors[sensorKey].Humidity = ld.Humidity
-	// activeSensors[sensorKey].HighTemp = ld.HighTemp
-	// activeSensors[sensorKey].LowTemp = ld.LowTemp
-	// activeSensors[sensorKey].HighHumidity = ld.HighHumidity
-	// activeSensors[sensorKey].LowHumidity = ld.LowHumidity
-	activeSensors[sensorKey].DataDate = ld.Date
+func notifyWidget(nd newData) {
+
+	key := nd.key
+	temp := nd.temp
+	humidity := nd.humidity
+	date := nd.date
+
+	// Sometimes, the temp is blank from the sensor, so check if 0.0, don't update
+	// Simple test of value changed from last time. If it didn't, do nothing
+	if (temp != activeSensors[key].Temp) && (temp != 0) {
+		weatherWidgets[key].temp = temp
+		latestDataQueue[key].Temp = temp
+		activeSensors[key].Temp = temp
+	}
+	if (humidity != activeSensors[key].Humidity) && (humidity != 0) {
+		weatherWidgets[key].humidity = humidity
+		latestDataQueue[key].Humidity = humidity
+		activeSensors[key].Humidity = humidity
+	}
+	weatherWidgets[key].latestUpdate = date
+	latestDataQueue[key].Date = date
+	activeSensors[key].DataDate = date
+
+	//Calculate & update highs and lows
+	if (temp != 0) && (temp > weatherWidgets[key].highTemp) {
+		weatherWidgets[key].highTemp = temp
+		latestDataQueue[key].HighTemp = temp
+		activeSensors[key].HighTemp = temp
+	}
+	if (temp != 0) && (temp < weatherWidgets[key].lowTemp) {
+		weatherWidgets[key].lowTemp = temp
+		latestDataQueue[key].LowTemp = temp
+		activeSensors[key].LowTemp = temp
+	}
+	if (humidity != 0) && (humidity > (weatherWidgets[key].highHumidity)) {
+		weatherWidgets[key].highHumidity = humidity
+		latestDataQueue[key].HighHumidity = humidity
+		activeSensors[key].HighHumidity = humidity
+	}
+	if (humidity != 0) && (humidity < weatherWidgets[key].lowHumidity) {
+		weatherWidgets[key].lowHumidity = humidity
+		latestDataQueue[key].LowHumidity = humidity
+		activeSensors[key].LowHumidity = humidity
+	}
 	// Send channel signal to background processor
-	weatherWidgets[sensorKey].channel <- sensorKey
+	weatherWidgets[key].channel <- key
 }
 
 func sub(client mqtt.Client) {

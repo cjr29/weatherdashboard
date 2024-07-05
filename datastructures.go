@@ -34,6 +34,28 @@ func (cc *CustomChannel) channel() string {
 	return cc.Channel
 }
 
+/* type CustomTemp struct {
+	Temperature_F float64
+}
+
+func (cc *CustomTemp) temp() float64 {
+	if cc.Temperature_F == 0 {
+		return 999.9
+	}
+	return cc.Temperature_F
+}
+
+type CustomHumidity struct {
+	Humidity float64
+}
+
+func (cc *CustomHumidity) humidity() float64 {
+	if cc.Humidity == 0 {
+		return 999.9
+	}
+	return cc.Humidity
+} */
+
 type WeatherData struct {
 	Time           string  `json:"time"`          //"2024-06-11 10:33:52"
 	Model          string  `json:"model"`         //"Acurite-5n1"
@@ -100,6 +122,13 @@ type latestData struct {
 	LowTemp      float64 `json:"LowTemp"`
 	HighHumidity float64 `json:"HighHumidity"`
 	LowHumidity  float64 `json:"LowHumidity"`
+}
+
+type newData struct {
+	key      string
+	temp     float64
+	humidity float64
+	date     string
 }
 
 type Message struct {
@@ -226,13 +255,13 @@ func (s *Sensor) init(key string) {
 	s.DateAdded = st
 	s.LastEdit = ""
 	// Latest sensor data received
-	s.Temp = 999.9
-	s.Humidity = 999.9
+	s.Temp = 0
+	s.Humidity = 0
 	s.DataDate = ""
-	s.HighTemp = -999.9
-	s.LowTemp = 999.9
-	s.HighHumidity = -999.9
-	s.LowHumidity = 999.9
+	s.HighTemp = 0
+	s.LowTemp = 0
+	s.HighHumidity = 0
+	s.LowHumidity = 0
 	// Visibility of sensor to menus and displays
 	s.Hide = true
 }
