@@ -115,7 +115,7 @@ func jsonOutput() (e error) {
 func jsonInput() (e error) {
 	// Declare a configuration structure composed of the structures and maps needed
 	var as map[string]Sensor
-	var ldq = make(map[string]latestData)
+	var ldq map[string]latestData
 
 	c := Configuration{
 		Brokers:         brokers,
@@ -155,9 +155,9 @@ func jsonInput() (e error) {
 		latestDataQueue[key] = &value
 	}
 
-	for key, value := range latestDataQueue {
-		fmt.Println("Input JSON Latest Data: ", key, value.Date, value.Temp, value.Humidity, value.HighTemp, value.HighHumidity)
-	}
+	// for key, value := range latestDataQueue {
+	// 	fmt.Println("Input JSON Latest Data: ", key, value.Date, value.Temp, value.Humidity, value.HighTemp, value.HighHumidity)
+	// }
 
 	return nil
 }

@@ -39,10 +39,12 @@ var wwHandler func(key string) = func(key string) {
 		if temp != 0.0 {
 			weatherWidgets[key].temp = temp
 			latestDataQueue[key].Temp = temp
+			activeSensors[key].Temp = temp
 		}
 		if humidity != 0.0 {
 			weatherWidgets[key].humidity = humidity
 			latestDataQueue[key].Humidity = humidity
+			activeSensors[key].Humidity = humidity
 		}
 		weatherWidgets[key].latestUpdate = date
 		latestDataQueue[key].Date = date
@@ -50,18 +52,22 @@ var wwHandler func(key string) = func(key string) {
 		if temp > weatherWidgets[key].highTemp {
 			weatherWidgets[key].highTemp = temp
 			latestDataQueue[key].HighTemp = temp
+			activeSensors[key].HighTemp = temp
 		}
 		if temp < weatherWidgets[key].lowTemp {
 			weatherWidgets[key].lowTemp = temp
 			latestDataQueue[key].LowTemp = temp
+			activeSensors[key].LowTemp = temp
 		}
 		if humidity > weatherWidgets[key].highHumidity {
 			weatherWidgets[key].highHumidity = humidity
 			latestDataQueue[key].HighHumidity = humidity
+			activeSensors[key].HighHumidity = humidity
 		}
 		if humidity < weatherWidgets[key].lowHumidity {
 			weatherWidgets[key].lowHumidity = humidity
 			latestDataQueue[key].LowHumidity = humidity
+			activeSensors[key].LowHumidity = humidity
 		}
 		weatherWidgets[key].Refresh()
 	}

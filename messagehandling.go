@@ -33,6 +33,7 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 		if _, ok := availableSensors[skey]; !ok {
 			// Sensor not in available sensors map. Add it.
 			sens := outgoing.GetSensorFromData() // Create Sensor record
+			sens.init(skey)                      // Initialize sensor record
 			availableSensors[skey] = &sens       // Add it to the visible sensors
 			SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
 		}
@@ -45,12 +46,12 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 		// Update Sensor's WeatherWidget if not hidden and widget exists
 		if checkWeatherWidget(skey) && !s.Hide {
 			// Put latest data in queue
-			ld := latestData{}
+			ld := latestData{999.9, 999.9, "date", -999.9, 999.9, -999.9, 999.9}
 			ld.Temp = outgoing.Temperature_F
 			ld.Humidity = outgoing.Humidity
 			ld.Date = outgoing.Time
 
-			go notifyWidget(ld, skey)
+			go notifyWidget(&ld, skey)
 			if dashboardContainer != nil {
 				dashboardContainer.Refresh()
 			}
@@ -76,8 +77,22 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 }
 
 // Send channel message to goroutine to update widget. Runs once and quits.
-func notifyWidget(ld latestData, sensorKey string) {
-	latestDataQueue[sensorKey] = &ld
+func notifyWidget(ld *latestData, sensorKey string) {
+	latestDataQueue[sensorKey].Temp = ld.Temp
+	latestDataQueue[sensorKey].Humidity = ld.Humidity
+	// latestDataQueue[sensorKey].HighTemp = ld.HighTemp
+	// latestDataQueue[sensorKey].LowTemp = ld.LowTemp
+	// latestDataQueue[sensorKey].HighHumidity = ld.HighHumidity
+	// latestDataQueue[sensorKey].LowHumidity = ld.LowHumidity
+	latestDataQueue[sensorKey].Date = ld.Date
+	activeSensors[sensorKey].Temp = ld.Temp
+	activeSensors[sensorKey].Humidity = ld.Humidity
+	// activeSensors[sensorKey].HighTemp = ld.HighTemp
+	// activeSensors[sensorKey].LowTemp = ld.LowTemp
+	// activeSensors[sensorKey].HighHumidity = ld.HighHumidity
+	// activeSensors[sensorKey].LowHumidity = ld.LowHumidity
+	activeSensors[sensorKey].DataDate = ld.Date
+	// Send channel signal to background processor
 	weatherWidgets[sensorKey].channel <- sensorKey
 }
 

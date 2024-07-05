@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -60,7 +61,16 @@ type Sensor struct {
 	Location  string `json:"Location"` // Optional location of sensor
 	DateAdded string `json:"DateAdded"`
 	LastEdit  string `json:"LastEdit"`
-	Hide      bool   `json:"Hide"` // If set true, do not include in the list of weatherWidgets in dashboard
+	// Latest sensor data received
+	Temp         float64 `json:"Temp"`
+	Humidity     float64 `json:"Humidity"`
+	DataDate     string  `json:"Date"`
+	HighTemp     float64 `json:"HighTemp"`
+	LowTemp      float64 `json:"LowTemp"`
+	HighHumidity float64 `json:"HighHumidity"`
+	LowHumidity  float64 `json:"LowHumidity"`
+	// Visibility of sensor to menus and displays
+	Hide bool `json:"Hide"` // If set true, do not include in the list of weatherWidgets in dashboard
 }
 
 type Broker struct {
@@ -115,17 +125,17 @@ type ChoicesIntKey struct {
 }
 
 type DisplaySensorData struct {
-	SensorKey        string
-	SensorName       string
-	SensorStation    string
-	LatestUpdate     string
-	LatestTemp       float64
-	LatestHumidity   float64
-	HighTemp         float64
-	LowTemp          float64
-	HighHumidity     float64
-	LowHumidity      float64
-	DisplayContainer *fyne.Container // Pointer to the container holding all the display elements. Could be a widget.
+	SensorKey      string
+	SensorName     string
+	SensorStation  string
+	LatestUpdate   string
+	LatestTemp     float64
+	LatestHumidity float64
+	HighTemp       float64
+	LowTemp        float64
+	HighHumidity   float64
+	LowHumidity    float64
+	// DisplayContainer *fyne.Container // Pointer to the container holding all the display elements. Could be a widget.
 }
 
 const (
@@ -202,6 +212,29 @@ func (wd *WeatherData) CopyWDRtoWD(from WeatherDataRaw) {
 func (wd *WeatherData) BuildSensorKey() string {
 	key := wd.Station + ":" + wd.Model + ":" + strconv.Itoa(wd.Id) + ":" + wd.Channel
 	return key
+}
+
+// Initialize sensor
+func (s *Sensor) init(key string) {
+	s.Key = key
+	s.Station = "Station"
+	s.Name = "Name"
+	s.Location = "Location"
+	s.Model = "Model"
+	t := time.Now().Local()
+	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
+	s.DateAdded = st
+	s.LastEdit = ""
+	// Latest sensor data received
+	s.Temp = 999.9
+	s.Humidity = 999.9
+	s.DataDate = ""
+	s.HighTemp = -999.9
+	s.LowTemp = 999.9
+	s.HighHumidity = -999.9
+	s.LowHumidity = 999.9
+	// Visibility of sensor to menus and displays
+	s.Hide = true
 }
 
 // Format Sensor string for writing
