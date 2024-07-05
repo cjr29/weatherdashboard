@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/widget"
 )
 
 type WeatherDataRaw struct {
@@ -73,10 +75,21 @@ var (
 	activeSensors    = make(map[string]*Sensor)        // Active sensors table, indirect
 	messages         = make(map[int]Message)           // Topics to be subscribed
 	weatherWidgets   = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
+	latestDataQueue  = make(map[string]*latestData)    // key is the Sensor key
+	dataFiles        = make(map[string]DataFile)       // Home:DataFile
+	brokers          = []Broker{
+		// {"path", 1883, "uid", "pwd"},
+	}
 )
 
-var brokers = []Broker{
-	// {"path", 1883, "uid", "pwd"},
+type latestData struct {
+	Temp         float64 `json:"Temp"`
+	Humidity     float64 `json:"Humidity"`
+	Date         string  `json:"Date"`
+	HighTemp     float64 `json:"HighTemp"`
+	LowTemp      float64 `json:"LowTemp"`
+	HighHumidity float64 `json:"HighHumidity"`
+	LowHumidity  float64 `json:"LowHumidity"`
 }
 
 type Message struct {
@@ -89,12 +102,11 @@ type DataFile struct {
 	path string
 }
 
-var dataFiles = make(map[string]DataFile) // Home:DataFile
-
 type Configuration struct {
-	Brokers       []Broker
-	Messages      map[int]Message
-	ActiveSensors map[string]Sensor
+	Brokers         []Broker
+	Messages        map[int]Message
+	ActiveSensors   map[string]Sensor
+	LatestDataQueue map[string]latestData
 }
 
 type ChoicesIntKey struct {
@@ -114,6 +126,43 @@ type DisplaySensorData struct {
 	HighHumidity     float64
 	LowHumidity      float64
 	DisplayContainer *fyne.Container // Pointer to the container holding all the display elements. Could be a widget.
+}
+
+const (
+	widgetSizeX float32 = 250
+	widgetSizeY float32 = 200
+)
+
+type weatherWidget struct {
+	widget.BaseWidget // Inherit from BaseWidget
+	sensorKey         string
+	sensorStation     string
+	sensorName        string
+	temp              float64
+	humidity          float64
+	highTemp          float64
+	lowTemp           float64
+	highHumidity      float64
+	lowHumidity       float64
+	latestUpdate      string
+	channel           chan string
+	goHandler         func(key string)
+	renderer          *weatherWidgetRenderer
+}
+
+type weatherWidgetRenderer struct {
+	widget       *weatherWidget
+	frame        *canvas.Rectangle
+	station      *canvas.Text
+	sensorName   *canvas.Text
+	temp         *canvas.Text
+	humidity     *canvas.Text
+	highTemp     *canvas.Text
+	lowTemp      *canvas.Text
+	highHumidity *canvas.Text
+	lowHumidity  *canvas.Text
+	latestUpdate *canvas.Text
+	objects      []fyne.CanvasObject
 }
 
 /**********************************************************************************

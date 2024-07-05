@@ -137,8 +137,7 @@ var selectionHandler = func(value string) {
 		s.Hide = s_Hide_widget.Checked
 		s.LastEdit = st
 		activeSensors[key] = s
-		weatherWidgets[key].Refresh()
-		dashboardContainer.Refresh()
+		reloadDashboard()
 		editSensorWindow.Close()
 	})
 	editSensorWindow.Show()
@@ -510,6 +509,9 @@ func main() {
 	//**********************************
 	readConfig()
 
+	// Build the widgets used by the dashboard before activating the GUI
+	generateWeatherWidgets()
+
 	//**********************************
 	// Set configuration for MQTT, read from config.ini file in local directory
 	//**********************************
@@ -536,12 +538,7 @@ func main() {
 	//**********************************
 	// Turn over control to the GUI
 	//**********************************
-	generateWeatherWidgets()
 	w.SetOnClosed(exitHandler)
-
-	// Delay 10 seconds while starting background processes
-	// fmt.Println("Waiting 10 seconds while background processes start...")
-	// time.Sleep(10 * time.Second)
 
 	w.ShowAndRun()
 
@@ -581,9 +578,6 @@ func generateWeatherWidgets() {
 			weatherWidgets[s] = newWidget
 		}
 	}
-	for _, ww := range weatherWidgets {
-		fmt.Printf("WeatherWidget: Key = %s, Name = %s\n", ww.sensorKey, ww.sensorName)
-	}
 }
 
 // checkWeatherWidget - Check if widget is available
@@ -612,6 +606,9 @@ func reloadDashboard() {
 		dashboardWindow = a.NewWindow("Weather Dashboard")
 		dashFlag = true
 	}
+	dashboardWindow.SetOnClosed(func() {
+		dashFlag = false
+	})
 	dashboardContainer = container.NewGridWithColumns(numColumns)
 
 	// Delete existing weatherWidgets

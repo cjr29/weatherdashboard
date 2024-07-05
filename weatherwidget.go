@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"sort"
 	"strconv"
@@ -13,17 +12,11 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/widget"
-)
-
-const (
-	widgetSizeX float32 = 250
-	widgetSizeY float32 = 200
 )
 
 // Goroutine to run for each weather widget to watch for channel messages
 var wwHandler func(key string) = func(key string) {
-	fmt.Printf("wwHandler for %s - %s started.\n", weatherWidgets[key].sensorName, key)
+	//fmt.Printf("wwHandler for %s - %s started.\n", weatherWidgets[key].sensorName, key)
 	// Loop forever
 	var c = weatherWidgets[key].channel
 	for {
@@ -38,58 +31,41 @@ var wwHandler func(key string) = func(key string) {
 			return
 		}
 		// Get latest data
-		temp := latestDataQueue[key].temp
-		humidity := latestDataQueue[key].humidity
-		date := latestDataQueue[key].date
+		temp := latestDataQueue[key].Temp
+		humidity := latestDataQueue[key].Humidity
+		date := latestDataQueue[key].Date
 		// Write latest data into weather widget
-		weatherWidgets[key].temp = temp
-		weatherWidgets[key].humidity = humidity
+		// Sometimes, the temp is blank from the sensor, so check if 0.0, don't update
+		if temp != 0.0 {
+			weatherWidgets[key].temp = temp
+			latestDataQueue[key].Temp = temp
+		}
+		if humidity != 0.0 {
+			weatherWidgets[key].humidity = humidity
+			latestDataQueue[key].Humidity = humidity
+		}
 		weatherWidgets[key].latestUpdate = date
+		latestDataQueue[key].Date = date
 		// Calculate & update highs and lows
-		// TBD
+		if temp > weatherWidgets[key].highTemp {
+			weatherWidgets[key].highTemp = temp
+			latestDataQueue[key].HighTemp = temp
+		}
+		if temp < weatherWidgets[key].lowTemp {
+			weatherWidgets[key].lowTemp = temp
+			latestDataQueue[key].LowTemp = temp
+		}
+		if humidity > weatherWidgets[key].highHumidity {
+			weatherWidgets[key].highHumidity = humidity
+			latestDataQueue[key].HighHumidity = humidity
+		}
+		if humidity < weatherWidgets[key].lowHumidity {
+			weatherWidgets[key].lowHumidity = humidity
+			latestDataQueue[key].LowHumidity = humidity
+		}
 		weatherWidgets[key].Refresh()
 	}
 }
-
-type weatherWidget struct {
-	widget.BaseWidget // Inherit from BaseWidget
-	sensorKey         string
-	sensorStation     string
-	sensorName        string
-	temp              float64
-	humidity          float64
-	highTemp          float64
-	lowTemp           float64
-	highHumidity      float64
-	lowHumidity       float64
-	latestUpdate      string
-	channel           chan string
-	goHandler         func(key string)
-	renderer          *weatherWidgetRenderer
-}
-
-type weatherWidgetRenderer struct {
-	widget       *weatherWidget
-	frame        *canvas.Rectangle
-	station      *canvas.Text
-	sensorName   *canvas.Text
-	temp         *canvas.Text
-	humidity     *canvas.Text
-	highTemp     *canvas.Text
-	lowTemp      *canvas.Text
-	highHumidity *canvas.Text
-	lowHumidity  *canvas.Text
-	latestUpdate *canvas.Text
-	objects      []fyne.CanvasObject
-}
-
-type latestData struct {
-	temp     float64
-	humidity float64
-	date     string
-}
-
-var latestDataQueue = make(map[string]latestData) // key is the Sensor key
 
 /******************************************
  * Renderer Methods
@@ -268,10 +244,18 @@ func (ww *weatherWidget) Init(s *Sensor) {
 	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
 	s_LastEdit_widget.SetText(st)
 	ww.latestUpdate = st
+	// Load the latest data, which may have been loade from JSON on startup
+	ww.temp = latestDataQueue[s.Key].Temp
+	ww.humidity = latestDataQueue[s.Key].Humidity
+	ww.highHumidity = latestDataQueue[s.Key].HighHumidity
+	ww.lowHumidity = latestDataQueue[s.Key].LowHumidity
+	ww.highTemp = latestDataQueue[s.Key].HighTemp
+	ww.lowTemp = latestDataQueue[s.Key].LowTemp
+	ww.latestUpdate = latestDataQueue[s.Key].Date
 	wwc := make(chan string, 5) // Buffered channel for this sensor
 	ww.channel = wwc
 	ww.goHandler = wwHandler
-	fmt.Println("Weather Widget channel initialized for ==> ", s.Key)
+	//fmt.Println("Weather Widget channel initialized for ==> ", s.Key)
 }
 
 // sortWeatherWidgets

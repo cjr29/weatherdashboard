@@ -78,18 +78,34 @@ func writeConfig() {
 
 // jsonOutput() - Write out all configuration options to a .json file
 func jsonOutput() (e error) {
+
 	// Declare a configuration structure composed of the structures and maps needed
 	var as = make(map[string]Sensor)
+	var ldq = make(map[string]latestData)
+
 	// retrive all current active sensors, making sure to dereference the address first!
 	for key := range activeSensors {
 		a := *activeSensors[key]
 		as[key] = a
 	}
-	c := Configuration{
-		Brokers:       brokers,
-		Messages:      messages,
-		ActiveSensors: as,
+
+	// Dereference latest data queue items into a temp map
+	for key := range latestDataQueue {
+		ld := *latestDataQueue[key]
+		ldq[key] = ld
 	}
+
+	for key, value := range ldq {
+		fmt.Println("Output JSON Latest Data: ", key, value.Date, value.Temp, value.Humidity, value.HighTemp, value.HighHumidity)
+	}
+
+	c := Configuration{
+		Brokers:         brokers,
+		Messages:        messages,
+		ActiveSensors:   as,
+		LatestDataQueue: ldq,
+	}
+
 	data, _ := json.MarshalIndent(c, "", "    ")
 	err := os.WriteFile("config.json", data, 0644)
 	return err
@@ -99,15 +115,13 @@ func jsonOutput() (e error) {
 func jsonInput() (e error) {
 	// Declare a configuration structure composed of the structures and maps needed
 	var as map[string]Sensor
+	var ldq = make(map[string]latestData)
 
-	// for key := range activeSensors {
-	// 	a := *activeSensors[key]
-	// 	as = append(as, a)
-	// }
 	c := Configuration{
-		Brokers:       brokers,
-		Messages:      messages,
-		ActiveSensors: as,
+		Brokers:         brokers,
+		Messages:        messages,
+		ActiveSensors:   as,
+		LatestDataQueue: ldq,
 	}
 
 	inidata, err := os.ReadFile("config.json")
@@ -131,12 +145,18 @@ func jsonInput() (e error) {
 		messages[key] = value
 	}
 
-	// for _, value := range c.ActiveSensors {
-	// 	activeSensors[value.Key] = &value
-	// }
 	// Load the input sensors, being sure to store the address of the sensor, not the sensor
-	for _, value := range c.ActiveSensors {
-		activeSensors[value.Key] = &value
+	for key, value := range c.ActiveSensors {
+		activeSensors[key] = &value
+	}
+
+	// Load the latest data queue
+	for key, value := range c.LatestDataQueue {
+		latestDataQueue[key] = &value
+	}
+
+	for key, value := range latestDataQueue {
+		fmt.Println("Input JSON Latest Data: ", key, value.Date, value.Temp, value.Humidity, value.HighTemp, value.HighHumidity)
 	}
 
 	return nil

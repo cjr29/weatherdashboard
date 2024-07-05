@@ -45,7 +45,11 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 		// Update Sensor's WeatherWidget if not hidden and widget exists
 		if checkWeatherWidget(skey) && !s.Hide {
 			// Put latest data in queue
-			ld := latestData{outgoing.Temperature_F, outgoing.Humidity, outgoing.Time}
+			ld := latestData{}
+			ld.Temp = outgoing.Temperature_F
+			ld.Humidity = outgoing.Humidity
+			ld.Date = outgoing.Time
+
 			go notifyWidget(ld, skey)
 			if dashboardContainer != nil {
 				dashboardContainer.Refresh()
@@ -73,7 +77,7 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 
 // Send channel message to goroutine to update widget. Runs once and quits.
 func notifyWidget(ld latestData, sensorKey string) {
-	latestDataQueue[sensorKey] = ld
+	latestDataQueue[sensorKey] = &ld
 	weatherWidgets[sensorKey].channel <- sensorKey
 }
 
