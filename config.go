@@ -81,7 +81,6 @@ func jsonOutput() (e error) {
 
 	// Declare a configuration structure composed of the structures and maps needed
 	var as = make(map[string]Sensor)
-	var ldq = make(map[string]latestData)
 
 	// retrive all current active sensors, making sure to dereference the address first!
 	for key := range activeSensors {
@@ -89,21 +88,10 @@ func jsonOutput() (e error) {
 		as[key] = a
 	}
 
-	// Dereference latest data queue items into a temp map
-	for key := range latestDataQueue {
-		ld := *latestDataQueue[key]
-		ldq[key] = ld
-	}
-
-	for key, value := range ldq {
-		fmt.Println("Output JSON Latest Data: ", key, value.Date, value.Temp, value.Humidity, value.HighTemp, value.HighHumidity)
-	}
-
 	c := Configuration{
-		Brokers:         brokers,
-		Messages:        messages,
-		ActiveSensors:   as,
-		LatestDataQueue: ldq,
+		Brokers:       brokers,
+		Messages:      messages,
+		ActiveSensors: as,
 	}
 
 	data, _ := json.MarshalIndent(c, "", "    ")
@@ -115,13 +103,11 @@ func jsonOutput() (e error) {
 func jsonInput() (e error) {
 	// Declare a configuration structure composed of the structures and maps needed
 	var as map[string]Sensor
-	var ldq map[string]latestData
 
 	c := Configuration{
-		Brokers:         brokers,
-		Messages:        messages,
-		ActiveSensors:   as,
-		LatestDataQueue: ldq,
+		Brokers:       brokers,
+		Messages:      messages,
+		ActiveSensors: as,
 	}
 
 	inidata, err := os.ReadFile("config.json")
@@ -149,15 +135,6 @@ func jsonInput() (e error) {
 	for key, value := range c.ActiveSensors {
 		activeSensors[key] = &value
 	}
-
-	// Load the latest data queue
-	for key, value := range c.LatestDataQueue {
-		latestDataQueue[key] = &value
-	}
-
-	// for key, value := range latestDataQueue {
-	// 	fmt.Println("Input JSON Latest Data: ", key, value.Date, value.Temp, value.Humidity, value.HighTemp, value.HighHumidity)
-	// }
 
 	return nil
 }

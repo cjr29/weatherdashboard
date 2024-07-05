@@ -87,37 +87,30 @@ func notifyWidget(nd newData) {
 	// Simple test of value changed from last time. If it didn't, do nothing
 	if (temp != activeSensors[key].Temp) && (temp != 0) {
 		weatherWidgets[key].temp = temp
-		latestDataQueue[key].Temp = temp
 		activeSensors[key].Temp = temp
 	}
 	if (humidity != activeSensors[key].Humidity) && (humidity != 0) {
 		weatherWidgets[key].humidity = humidity
-		latestDataQueue[key].Humidity = humidity
 		activeSensors[key].Humidity = humidity
 	}
 	weatherWidgets[key].latestUpdate = date
-	latestDataQueue[key].Date = date
 	activeSensors[key].DataDate = date
 
 	//Calculate & update highs and lows
 	if (temp != 0) && (temp > weatherWidgets[key].highTemp) {
 		weatherWidgets[key].highTemp = temp
-		latestDataQueue[key].HighTemp = temp
 		activeSensors[key].HighTemp = temp
 	}
 	if (temp != 0) && (temp < weatherWidgets[key].lowTemp) {
 		weatherWidgets[key].lowTemp = temp
-		latestDataQueue[key].LowTemp = temp
 		activeSensors[key].LowTemp = temp
 	}
 	if (humidity != 0) && (humidity > (weatherWidgets[key].highHumidity)) {
 		weatherWidgets[key].highHumidity = humidity
-		latestDataQueue[key].HighHumidity = humidity
 		activeSensors[key].HighHumidity = humidity
 	}
 	if (humidity != 0) && (humidity < weatherWidgets[key].lowHumidity) {
 		weatherWidgets[key].lowHumidity = humidity
-		latestDataQueue[key].LowHumidity = humidity
 		activeSensors[key].LowHumidity = humidity
 	}
 	// Send channel signal to background processor

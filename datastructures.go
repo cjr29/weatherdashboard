@@ -107,7 +107,6 @@ var (
 	activeSensors    = make(map[string]*Sensor)        // Active sensors table, indirect
 	messages         = make(map[int]Message)           // Topics to be subscribed
 	weatherWidgets   = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
-	latestDataQueue  = make(map[string]*latestData)    // key is the Sensor key
 	dataFiles        = make(map[string]DataFile)       // Home:DataFile
 	brokers          = []Broker{
 		// {"path", 1883, "uid", "pwd"},
@@ -142,10 +141,9 @@ type DataFile struct {
 }
 
 type Configuration struct {
-	Brokers         []Broker
-	Messages        map[int]Message
-	ActiveSensors   map[string]Sensor
-	LatestDataQueue map[string]latestData
+	Brokers       []Broker
+	Messages      map[int]Message
+	ActiveSensors map[string]Sensor
 }
 
 type ChoicesIntKey struct {
