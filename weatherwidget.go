@@ -1,3 +1,9 @@
+/******************************************************************
+ *
+ * WeatherWidget - Generates and manages the custom widget used by
+ *                 the GUI dashboard
+ *
+ ******************************************************************/
 /*
 *    The container object to display the data from a given sensor
  */

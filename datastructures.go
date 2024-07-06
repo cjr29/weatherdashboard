@@ -1,3 +1,10 @@
+/******************************************************************
+ *
+ * Data Structures - All constants and structures used by the
+ *                   weatherdashboard
+ *
+ ******************************************************************/
+
 package main
 
 import (
@@ -10,6 +17,20 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
+)
+
+const (
+	widgetSizeX   float32 = 250
+	widgetSizeY   float32 = 200
+	widgetPadding float32 = 5 // separation between widgets
+	numColumns            = 5
+)
+const (
+	// YYYY-MM-DD: 2022-03-23
+	YYYYMMDD = "2006-01-02"
+	// 24h hh:mm:ss: 14:23:20
+	HHMMSS24h = "15:04:05"
+	// 12h hh:mm:ss: 2:23:20 PM
 )
 
 type WeatherDataRaw struct {
@@ -33,28 +54,6 @@ type CustomChannel struct {
 func (cc *CustomChannel) channel() string {
 	return cc.Channel
 }
-
-/* type CustomTemp struct {
-	Temperature_F float64
-}
-
-func (cc *CustomTemp) temp() float64 {
-	if cc.Temperature_F == 0 {
-		return 999.9
-	}
-	return cc.Temperature_F
-}
-
-type CustomHumidity struct {
-	Humidity float64
-}
-
-func (cc *CustomHumidity) humidity() float64 {
-	if cc.Humidity == 0 {
-		return 999.9
-	}
-	return cc.Humidity
-} */
 
 type WeatherData struct {
 	Time           string  `json:"time"`          //"2024-06-11 10:33:52"
@@ -102,17 +101,6 @@ type Broker struct {
 	Pwd  string `json:"Pwd"`
 }
 
-var (
-	availableSensors = make(map[string]*Sensor)        // Visible sensors table, no dups allowed
-	activeSensors    = make(map[string]*Sensor)        // Active sensors table, indirect
-	messages         = make(map[int]Message)           // Topics to be subscribed
-	weatherWidgets   = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
-	dataFiles        = make(map[string]DataFile)       // Home:DataFile
-	brokers          = []Broker{
-		// {"path", 1883, "uid", "pwd"},
-	}
-)
-
 type latestData struct {
 	Temp         float64 `json:"Temp"`
 	Humidity     float64 `json:"Humidity"`
@@ -151,24 +139,19 @@ type ChoicesIntKey struct {
 	Display string // String to display in selection menu
 }
 
-type DisplaySensorData struct {
-	SensorKey      string
-	SensorName     string
-	SensorStation  string
-	LatestUpdate   string
-	LatestTemp     float64
-	LatestHumidity float64
-	HighTemp       float64
-	LowTemp        float64
-	HighHumidity   float64
-	LowHumidity    float64
-	// DisplayContainer *fyne.Container // Pointer to the container holding all the display elements. Could be a widget.
-}
-
-const (
-	widgetSizeX float32 = 250
-	widgetSizeY float32 = 200
-)
+// type DisplaySensorData struct {
+// 	SensorKey      string
+// 	SensorName     string
+// 	SensorStation  string
+// 	LatestUpdate   string
+// 	LatestTemp     float64
+// 	LatestHumidity float64
+// 	HighTemp       float64
+// 	LowTemp        float64
+// 	HighHumidity   float64
+// 	LowHumidity    float64
+// 	// DisplayContainer *fyne.Container // Pointer to the container holding all the display elements. Could be a widget.
+// }
 
 type weatherWidget struct {
 	widget.BaseWidget // Inherit from BaseWidget
@@ -201,6 +184,17 @@ type weatherWidgetRenderer struct {
 	latestUpdate *canvas.Text
 	objects      []fyne.CanvasObject
 }
+
+var (
+	availableSensors = make(map[string]*Sensor)        // Visible sensors table, no dups allowed
+	activeSensors    = make(map[string]*Sensor)        // Active sensors table, indirect
+	messages         = make(map[int]Message)           // Topics to be subscribed
+	weatherWidgets   = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
+	dataFiles        = make(map[string]DataFile)       // Home:DataFile
+	brokers          = []Broker{
+		// {"path", 1883, "uid", "pwd"},
+	}
+)
 
 /**********************************************************************************
  *	Data Structure Functions

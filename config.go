@@ -1,10 +1,14 @@
-/*************************
+/****************************************************************
+ *
+ * Program configuration functions
  *
  * config.go - Reads the config.json file and sets up the connection options, generates
  *			message handlers for each subscribed topic, and opens the data output file
  *			for writing if requested by the data logging flag in the dashboard.
  *			When program exits, rewrites config.json with the current configuration.
- */
+ *
+******************************************************************/
+
 package main
 
 import (

@@ -1,3 +1,9 @@
+/******************************************************************
+ *
+ * MQTT message handling functions - used to process incoming data
+ *
+ ******************************************************************/
+
 package main
 
 import (
