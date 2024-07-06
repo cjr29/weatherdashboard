@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -86,6 +87,7 @@ func main() {
 	w.Resize(fyne.NewSize(640, 460))
 	w.SetMaster()
 	os.Setenv("FYNE_THEME", "light")
+	a.Settings().SetTheme(theme.LightTheme())
 
 	//**********************************
 	//  Prepare Menus
