@@ -58,6 +58,10 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	header := canvas.NewText(ww.sensorName, color.Black)
 	header.TextSize = 18
 
+	st := canvas.NewText(ww.sensorStation, color.Black)
+	st.TextSize = 10
+	st.TextStyle = fyne.TextStyle{Bold: true}
+
 	tw := canvas.NewText(strconv.FormatFloat(ww.temp, 'f', 1, 64), color.Black)
 	tw.TextSize = 40
 	tw.TextStyle = fyne.TextStyle{Bold: true}
@@ -84,6 +88,7 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	r.widget = ww
 	r.frame = frame
 	r.sensorName = header
+	r.station = st
 	r.temp = tw
 	r.humidity = hw
 	r.highTemp = htw
@@ -91,7 +96,7 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	r.highHumidity = hhw
 	r.lowHumidity = lhw
 	r.latestUpdate = latestUpdate
-	r.objects = append(r.objects, frame, header, tw, hw, htw, ltw, hhw, lhw, latestUpdate)
+	r.objects = append(r.objects, frame, header, st, tw, hw, htw, ltw, hhw, lhw, latestUpdate)
 
 	r.widget.ExtendBaseWidget(ww)
 
@@ -105,6 +110,7 @@ func (r *weatherWidgetRenderer) Destroy() {
 func (r *weatherWidgetRenderer) Layout(size fyne.Size) {
 	r.frame.Move(fyne.NewPos(0, 0))
 	r.sensorName.Move(fyne.NewPos(55, 0))
+	r.station.Move(fyne.NewPos(0, 5))
 	r.temp.Move(fyne.NewPos(70, 25))
 	r.humidity.Move(fyne.NewPos(50, 85))
 	r.highTemp.Move(fyne.NewPos(0, 40))
@@ -124,6 +130,7 @@ func (r *weatherWidgetRenderer) Objects() []fyne.CanvasObject {
 
 func (r *weatherWidgetRenderer) Refresh() {
 	r.sensorName.Text = r.widget.sensorName
+	r.station.Text = r.widget.sensorStation
 	r.temp.Text = strconv.FormatFloat(r.widget.temp, 'f', 1, 64)
 	r.humidity.Text = "Humidity " + strconv.FormatFloat(r.widget.humidity, 'f', 1, 64) + "%"
 	r.highTemp.Text = "Hi " + strconv.FormatFloat(r.widget.highTemp, 'f', 1, 64)
