@@ -50,10 +50,13 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	ww.renderer = &r
 
 	frame := &canvas.Rectangle{
-		FillColor:   color.RGBA{R: 202, G: 230, B: 243, A: 200},
-		StrokeColor: color.RGBA{R: 202, G: 230, B: 243, A: 200},
+		FillColor:   widgetBackgroundColor,
+		StrokeColor: widgetFrameColor,
+		StrokeWidth: strokeWidth,
 	}
 	frame.SetMinSize(fyne.NewSize(widgetSizeX, widgetSizeY))
+	frame.Resize(fyne.NewSize(widgetSizeX, widgetSizeY))
+	frame.CornerRadius = cornerRadius
 
 	header := canvas.NewText(ww.sensorName, color.Black)
 	header.TextSize = 18
@@ -109,15 +112,20 @@ func (r *weatherWidgetRenderer) Destroy() {
 
 func (r *weatherWidgetRenderer) Layout(size fyne.Size) {
 	r.frame.Move(fyne.NewPos(0, 0))
-	r.sensorName.Move(fyne.NewPos(55, 0))
-	r.station.Move(fyne.NewPos(0, 5))
-	r.temp.Move(fyne.NewPos(70, 25))
-	r.humidity.Move(fyne.NewPos(50, 85))
-	r.highTemp.Move(fyne.NewPos(0, 40))
-	r.lowTemp.Move(fyne.NewPos(0, 55))
-	r.highHumidity.Move(fyne.NewPos(0, 85))
-	r.lowHumidity.Move(fyne.NewPos(0, 100))
-	r.latestUpdate.Move(fyne.NewPos(17, 130))
+	// Calculate start of sensor name in widget
+	xpos := ((widgetSizeX / 2) - (r.sensorName.MinSize().Width)/2)
+	r.sensorName.Move(fyne.NewPos(xpos, 0))
+	r.station.Move(fyne.NewPos(4, 5))
+	xpos = ((widgetSizeX / 2) - (r.temp.MinSize().Width)/2)
+	r.temp.Move(fyne.NewPos(xpos, 25))
+	xpos = ((widgetSizeX / 2) - (r.humidity.MinSize().Width)/2)
+	r.humidity.Move(fyne.NewPos(xpos, 85))
+	r.highTemp.Move(fyne.NewPos(4, 40))
+	r.lowTemp.Move(fyne.NewPos(4, 55))
+	r.highHumidity.Move(fyne.NewPos(4, 85))
+	r.lowHumidity.Move(fyne.NewPos(4, 100))
+	xpos = ((widgetSizeX / 2) - (r.latestUpdate.MinSize().Width)/2)
+	r.latestUpdate.Move(fyne.NewPos(xpos, 130))
 }
 
 func (r *weatherWidgetRenderer) MinSize() fyne.Size {
@@ -129,6 +137,8 @@ func (r *weatherWidgetRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *weatherWidgetRenderer) Refresh() {
+	r.frame.Resize(fyne.NewSize(widgetSizeX, widgetSizeY)) // This is critical or frame won't appear
+	r.frame.Show()
 	r.sensorName.Text = r.widget.sensorName
 	r.station.Text = r.widget.sensorStation
 	r.temp.Text = strconv.FormatFloat(r.widget.temp, 'f', 1, 64)

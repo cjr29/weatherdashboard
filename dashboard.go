@@ -89,6 +89,7 @@ func reloadDashboard() {
 
 	// Show the reloaded container in window
 	dashboardContainer.Refresh()
+	dashboardWindow.CenterOnScreen()
 	dashboardWindow.Show()
 }
 

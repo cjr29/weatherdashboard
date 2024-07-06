@@ -9,6 +9,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 	"sort"
 	"strconv"
@@ -21,9 +22,11 @@ import (
 
 const (
 	widgetSizeX   float32 = 250
-	widgetSizeY   float32 = 200
+	widgetSizeY   float32 = 175
 	widgetPadding float32 = 5 // separation between widgets
 	numColumns            = 5
+	cornerRadius  float32 = 10
+	strokeWidth   float32 = 2
 )
 const (
 	// YYYY-MM-DD: 2022-03-23
@@ -194,6 +197,8 @@ var (
 	brokers          = []Broker{
 		// {"path", 1883, "uid", "pwd"},
 	}
+	widgetBackgroundColor = color.RGBA{R: 214, G: 240, B: 246, A: 255}
+	widgetFrameColor      = color.Black
 )
 
 /**********************************************************************************
