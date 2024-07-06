@@ -126,6 +126,11 @@ func (r *weatherWidgetRenderer) Layout(size fyne.Size) {
 	r.lowHumidity.Move(fyne.NewPos(4, 100))
 	xpos = ((widgetSizeX / 2) - (r.latestUpdate.MinSize().Width)/2)
 	r.latestUpdate.Move(fyne.NewPos(xpos, 130))
+	if !r.widget.hasHumidity {
+		r.humidity.Hide()
+		r.highHumidity.Hide()
+		r.lowHumidity.Hide()
+	}
 }
 
 func (r *weatherWidgetRenderer) MinSize() fyne.Size {
@@ -148,30 +153,25 @@ func (r *weatherWidgetRenderer) Refresh() {
 	r.highHumidity.Text = "Hi " + strconv.FormatFloat(r.widget.highHumidity, 'f', 1, 64) + "%"
 	r.lowHumidity.Text = "Lo " + strconv.FormatFloat(r.widget.lowHumidity, 'f', 1, 64) + "%"
 	r.latestUpdate.Text = "Latest update:   " + r.widget.latestUpdate
+	if !r.widget.hasHumidity {
+		r.lowHumidity.Hide()
+		r.highHumidity.Hide()
+		r.humidity.Hide()
+	} else {
+		r.lowHumidity.Show()
+		r.highHumidity.Show()
+		r.humidity.Show()
+	}
+	// if r.widget.lowHumidity == -1 {
+	// 	r.lowHumidity.Hide()
+	// 	r.highHumidity.Hide()
+	// 	r.humidity.Hide()
+	// }
 }
 
 /************************************
  * WeatherWidget Methods
  ************************************/
-
-/* func newWeatherWidget() *weatherWidget {
-	ww := weatherWidget{
-		sensorKey:     "",
-		sensorName:    "",
-		sensorStation: "",
-		temp:          0,
-		humidity:      0,
-		highTemp:      0,
-		lowTemp:       0,
-		highHumidity:  0,
-		lowHumidity:   0,
-		latestUpdate:  "date created",
-		channel:       make(chan string, 5),
-		goHandler:     wwHandler,
-	}
-	// ww.BaseWidget.ExtendBaseWidget(&ww)
-	return &ww
-} */
 
 func (ww *weatherWidget) CreateRenderer() fyne.WidgetRenderer {
 	r := newWeatherWidgetRenderer(ww)
@@ -237,6 +237,7 @@ func (ww *weatherWidget) Init(s *Sensor) {
 	ww.latestUpdate = st
 	ww.temp = activeSensors[s.Key].Temp
 	ww.humidity = activeSensors[s.Key].Humidity
+	ww.hasHumidity = activeSensors[s.Key].HasHumidity
 	ww.highHumidity = activeSensors[s.Key].HighHumidity
 	ww.lowHumidity = activeSensors[s.Key].LowHumidity
 	ww.highTemp = activeSensors[s.Key].HighTemp

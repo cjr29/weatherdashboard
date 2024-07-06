@@ -94,7 +94,8 @@ type Sensor struct {
 	HighHumidity float64 `json:"HighHumidity"`
 	LowHumidity  float64 `json:"LowHumidity"`
 	// Visibility of sensor to menus and displays
-	Hide bool `json:"Hide"` // If set true, do not include in the list of weatherWidgets in dashboard
+	Hide        bool `json:"Hide"`        // If set true, do not include in the list of weatherWidgets in dashboard
+	HasHumidity bool `json:"HasHumidity"` // If sensor does not provide humidity, set to false
 }
 
 type Broker struct {
@@ -142,20 +143,6 @@ type ChoicesIntKey struct {
 	Display string // String to display in selection menu
 }
 
-// type DisplaySensorData struct {
-// 	SensorKey      string
-// 	SensorName     string
-// 	SensorStation  string
-// 	LatestUpdate   string
-// 	LatestTemp     float64
-// 	LatestHumidity float64
-// 	HighTemp       float64
-// 	LowTemp        float64
-// 	HighHumidity   float64
-// 	LowHumidity    float64
-// 	// DisplayContainer *fyne.Container // Pointer to the container holding all the display elements. Could be a widget.
-// }
-
 type weatherWidget struct {
 	widget.BaseWidget // Inherit from BaseWidget
 	sensorKey         string
@@ -168,6 +155,7 @@ type weatherWidget struct {
 	highHumidity      float64
 	lowHumidity       float64
 	latestUpdate      string
+	hasHumidity       bool
 	channel           chan string
 	goHandler         func(key string)
 	renderer          *weatherWidgetRenderer
@@ -259,6 +247,7 @@ func (s *Sensor) init(key string) {
 	s.LowTemp = 0
 	s.HighHumidity = 0
 	s.LowHumidity = 0
+	s.HasHumidity = true
 	// Visibility of sensor to menus and displays
 	s.Hide = true
 }
