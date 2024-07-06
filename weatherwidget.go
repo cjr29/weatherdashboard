@@ -50,8 +50,8 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	ww.renderer = &r
 
 	frame := &canvas.Rectangle{
-		FillColor:   color.RGBA{R: 202, G: 230, B: 243, A: 255},
-		StrokeColor: color.RGBA{R: 202, G: 230, B: 243, A: 255},
+		FillColor:   color.RGBA{R: 202, G: 230, B: 243, A: 200},
+		StrokeColor: color.RGBA{R: 202, G: 230, B: 243, A: 200},
 	}
 	frame.SetMinSize(fyne.NewSize(widgetSizeX, widgetSizeY))
 
@@ -137,7 +137,7 @@ func (r *weatherWidgetRenderer) Refresh() {
 	r.lowTemp.Text = "Lo " + strconv.FormatFloat(r.widget.lowTemp, 'f', 1, 64)
 	r.highHumidity.Text = "Hi " + strconv.FormatFloat(r.widget.highHumidity, 'f', 1, 64) + "%"
 	r.lowHumidity.Text = "Lo " + strconv.FormatFloat(r.widget.lowHumidity, 'f', 1, 64) + "%"
-	r.latestUpdate.Text = r.widget.latestUpdate
+	r.latestUpdate.Text = "Latest update:   " + r.widget.latestUpdate
 }
 
 /************************************
