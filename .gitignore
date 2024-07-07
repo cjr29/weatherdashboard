@@ -15,6 +15,7 @@ weatherdashboard
 *.sav
 *.oldv1
 *.bak
+.DS_Store
 
 # Test binary, built with `go test -c`
 *.test

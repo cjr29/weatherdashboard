@@ -85,6 +85,8 @@ func main() {
 	a = app.NewWithID("github.com/cjr29/weatherdashboard")
 	w := a.NewWindow("Weather Dashboard")
 	w.Resize(fyne.NewSize(640, 460))
+	//r, _ := fyne.LoadResourceFromPath()
+	//w.SetIcon(theme.SettingsIcon())
 	w.SetMaster()
 	os.Setenv("FYNE_THEME", "light")
 	a.Settings().SetTheme(theme.LightTheme())

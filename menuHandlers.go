@@ -198,7 +198,6 @@ var editSpecificSensorHandler = func(key string) {
 	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
 	s_LastEdit_widget.SetText(st)
 	SetStatus(fmt.Sprintf("Last edit set to %s", st))
-	selectSensorWindow.Close()
 	// Pop up a window to let user edit record, then save the record
 	editSensorWindow = a.NewWindow("Edit active sensor properties.")
 	editSensorWindow.SetContent(EditSensorContainer)

@@ -11,6 +11,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"sort"
 	"strconv"
@@ -247,6 +248,14 @@ func (ww *weatherWidget) Init(s *Sensor) {
 	ww.channel = wwc
 	ww.goHandler = wwHandler
 }
+
+func (ww *weatherWidget) Tapped(*fyne.PointEvent) {
+	fmt.Println("Widget tapped")
+	// Call handler to edit the widget elements
+	editSpecificSensorHandler(ww.sensorKey)
+}
+
+func (mc *weatherWidget) TappedSecondary(*fyne.PointEvent) {}
 
 // sortWeatherWidgets
 func sortWeatherWidgets() (sortedWWKeys []string) {

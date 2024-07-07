@@ -36,6 +36,8 @@ const (
 	// 12h hh:mm:ss: 2:23:20 PM
 )
 
+//IconNameSettings fyne.ThemeIconName = "settings"
+
 type WeatherDataRaw struct {
 	Time          string        `json:"time"`          //"2024-06-11 10:33:52"
 	Model         string        `json:"model"`         //"Acurite-5n1"
