@@ -8,12 +8,12 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 	"math"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 )
 
 // SetStatus - publishes message on scrolling GUI status console
@@ -89,6 +89,7 @@ func reloadDashboard() {
 
 	// Show the reloaded container in window
 	dashboardContainer.Refresh()
+
 	dashboardWindow.CenterOnScreen()
 	dashboardWindow.Show()
 }
@@ -97,7 +98,7 @@ func reloadDashboard() {
 func ConsoleWrite(text string) {
 	Console.Add(&canvas.Text{
 		Text:      text,
-		Color:     color.Black,
+		Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
 		TextSize:  12,
 		TextStyle: fyne.TextStyle{Monospace: true},
 	})
@@ -117,7 +118,7 @@ func ConsoleWrite(text string) {
 func DisplayData(text string) {
 	WeatherDataDisp.Add(&canvas.Text{
 		Text:      text,
-		Color:     color.Black,
+		Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
 		TextSize:  12,
 		TextStyle: fyne.TextStyle{Monospace: true},
 	})
@@ -139,7 +140,7 @@ func DisplayTopics(t map[int]Message) {
 	header := fmt.Sprintf("Number of Subscribed Topics = %d", len(t))
 	TopicDisplay.Add(&canvas.Text{
 		Text:      header,
-		Color:     color.Black,
+		Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
 		TextSize:  12,
 		TextStyle: fyne.TextStyle{Monospace: true},
 	})
@@ -148,7 +149,7 @@ func DisplayTopics(t map[int]Message) {
 		text := msg.Topic
 		TopicDisplay.Add(&canvas.Text{
 			Text:      text,
-			Color:     color.Black,
+			Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
 			TextSize:  12,
 			TextStyle: fyne.TextStyle{Monospace: true},
 		})
@@ -171,7 +172,7 @@ func DisplaySensors(m map[string]*Sensor) {
 	header := fmt.Sprintf("Number of Sensors = %d", len(m))
 	SensorDisplay.Add(&canvas.Text{
 		Text:      header,
-		Color:     color.Black,
+		Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
 		TextSize:  12,
 		TextStyle: fyne.TextStyle{Monospace: true},
 	})
@@ -180,7 +181,7 @@ func DisplaySensors(m map[string]*Sensor) {
 		text := sens.FormatSensor(1)
 		SensorDisplay.Add(&canvas.Text{
 			Text:      text,
-			Color:     color.Black,
+			Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
 			TextSize:  12,
 			TextStyle: fyne.TextStyle{Monospace: true},
 		})
@@ -202,7 +203,7 @@ func DisplaySensors2(m map[string]*Sensor) {
 	header := fmt.Sprintf("Number of Sensors = %d", len(m))
 	SensorDisplay2.Add(&canvas.Text{
 		Text:      header,
-		Color:     color.Black,
+		Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
 		TextSize:  12,
 		TextStyle: fyne.TextStyle{Monospace: true},
 	})
@@ -211,7 +212,7 @@ func DisplaySensors2(m map[string]*Sensor) {
 		text := sens.FormatSensor(1)
 		SensorDisplay2.Add(&canvas.Text{
 			Text:      text,
-			Color:     color.Black,
+			Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
 			TextSize:  12,
 			TextStyle: fyne.TextStyle{Monospace: true},
 		})

@@ -9,7 +9,6 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 	"os"
 	"sort"
 	"strconv"
@@ -187,8 +186,6 @@ var (
 	brokers          = []Broker{
 		// {"path", 1883, "uid", "pwd"},
 	}
-	widgetBackgroundColor = color.RGBA{R: 214, G: 240, B: 246, A: 255}
-	widgetFrameColor      = color.Black
 )
 
 /**********************************************************************************

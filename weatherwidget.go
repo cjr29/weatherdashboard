@@ -21,6 +21,11 @@ import (
 	"fyne.io/fyne/v2/canvas"
 )
 
+var (
+	widgetBackgroundColor = color.RGBA{R: 214, G: 240, B: 246, A: 255}
+	widgetFrameColor      = color.Black
+)
+
 // Goroutine to run for each weather widget to watch for channel messages
 var wwHandler func(key string) = func(key string) {
 	//fmt.Printf("wwHandler for %s - %s started.\n", weatherWidgets[key].sensorName, key)
@@ -163,11 +168,6 @@ func (r *weatherWidgetRenderer) Refresh() {
 		r.highHumidity.Show()
 		r.humidity.Show()
 	}
-	// if r.widget.lowHumidity == -1 {
-	// 	r.lowHumidity.Hide()
-	// 	r.highHumidity.Hide()
-	// 	r.humidity.Hide()
-	// }
 }
 
 /************************************

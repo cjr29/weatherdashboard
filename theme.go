@@ -10,24 +10,26 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-type myTheme struct {
+type weatherTheme struct {
 }
 
-func (m *myTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
+func (m *weatherTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	switch n {
 	case theme.ColorNameBackground, theme.ColorNameInputBackground,
 		theme.ColorNameOverlayBackground, theme.ColorNameMenuBackground:
 		if v == theme.VariantLight {
-			return &color.NRGBA{R: 0xF0, G: 0xE9, B: 0x9B, A: 0xFF}
+			//return &color.NRGBA{R: 0xF0, G: 0xE9, B: 0x9B, A: 0xFF}
+			return &color.NRGBA{R: 223, G: 225, B: 234, A: 0xFF}
 		}
-		return &color.NRGBA{R: 0x37, G: 0x2B, B: 0x09, A: 0xFF}
+		return &color.NRGBA{R: 0x14, G: 0x27, B: 0x35, A: 0xFF}
 	case theme.ColorNameForeground:
 		if v == theme.VariantLight {
-			return &color.NRGBA{R: 0x46, G: 0x3A, B: 0x11, A: 0xFF}
+			// return &color.NRGBA{R: 0x46, G: 0x3A, B: 0x11, A: 0xFF}
+			return &color.NRGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xFF} // Black
 		}
 		return &color.NRGBA{R: 0xF0, G: 0xE9, B: 0x9B, A: 0xFF}
 	case theme.ColorNamePrimary:
-		return &color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xAA}
+		return &color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xAA} // White
 	case theme.ColorNameButton, theme.ColorNameFocus, theme.ColorNameSelection:
 		return &color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0x66}
 	}
@@ -35,15 +37,15 @@ func (m *myTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color 
 	return theme.DefaultTheme().Color(n, v)
 }
 
-func (m *myTheme) Font(s fyne.TextStyle) fyne.Resource {
+func (m *weatherTheme) Font(s fyne.TextStyle) fyne.Resource {
 	return theme.DefaultTheme().Font(s)
 }
 
-func (m *myTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
+func (m *weatherTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
 	return theme.DefaultTheme().Icon(n)
 }
 
-func (m *myTheme) Size(n fyne.ThemeSizeName) float32 {
+func (m *weatherTheme) Size(n fyne.ThemeSizeName) float32 {
 	switch n {
 	case theme.SizeNameLineSpacing:
 		return 2

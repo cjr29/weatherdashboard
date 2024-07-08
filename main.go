@@ -15,6 +15,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/cmd/fyne_settings/settings"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -35,6 +36,7 @@ var (
 	TopicDisplay    = container.NewVBox()
 	TopicScroller   = container.NewVScroll(TopicDisplay)
 
+	th                  = weatherTheme{}
 	EditSensorContainer *fyne.Container
 	statusContainer     *fyne.Container
 	//buttonContainer     *fyne.Container
@@ -81,15 +83,17 @@ func main() {
 	//**********************************
 	// Set up Fyne window before trying to write to Status line!!!
 	//**********************************
+	os.Setenv("FYNE_THEME", "light")
 	a = app.NewWithID("github.com/cjr29/weatherdashboard")
 	w := a.NewWindow("Weather Dashboard")
 	w.Resize(fyne.NewSize(640, 460))
 	//r, _ := fyne.LoadResourceFromPath()
 	//w.SetIcon(theme.SettingsIcon())
-	a.Settings().SetTheme(&myTheme{})
+
+	// weatherTheme support Light and Dark variants
+	a.Settings().SetTheme(&th)
+	settings.NewSettings().LoadAppearanceScreen(w)
 	w.SetMaster()
-	os.Setenv("FYNE_THEME", "light")
-	//a.Settings().SetTheme(theme.LightTheme())
 
 	//**********************************
 	//  Prepare Menus
