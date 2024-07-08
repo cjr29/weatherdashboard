@@ -93,6 +93,14 @@ var hideWidgetHandler = func(value bool) {
 var showHumidityHandler = func(value bool) {
 }
 
+var resetHiLoHandler = func(value bool) {
+	if value {
+		resetHiLoFlag = true
+		return
+	}
+	resetHiLoFlag = false
+}
+
 // LIST ACTIVE SENSORS
 var listSensorsHandler = func() {
 	// Get displayable list of sensors
@@ -175,7 +183,7 @@ var editSensorHandler = func() {
 	selectSensorWindow.Show()
 }
 
-// EDIT SPECIFIC SENSOR (future use for button in widget)
+// EDIT SPECIFIC SENSOR (in widget)
 var editSpecificSensorHandler = func(key string) {
 	s := activeSensors[key]
 	sav_Station = s.Station
@@ -191,6 +199,7 @@ var editSpecificSensorHandler = func(key string) {
 	s_Location_widget.SetPlaceHolder("Location")
 	s_Hide_widget.SetChecked(s.Hide)
 	s_HasHumidity_widget.SetChecked(s.HasHumidity)
+	s_ResetHiLo_widget.SetChecked(false)
 	s_Model_widget.SetText(s.Model)
 	s_Id_widget.SetText(strconv.Itoa(s.Id))
 	s_Channel_widget.SetText(s.Channel)
@@ -227,6 +236,12 @@ var editSpecificSensorHandler = func(key string) {
 		s.Hide = s_Hide_widget.Checked
 		s.HasHumidity = s_HasHumidity_widget.Checked
 		s.LastEdit = st
+		if resetHiLoFlag {
+			s.HighTemp = s.Temp
+			s.LowTemp = s.Temp
+			s.HighHumidity = s.Humidity
+			s.LowHumidity = s.Humidity
+		}
 		activeSensors[key] = s
 		reloadDashboard()
 		editSensorWindow.Close()

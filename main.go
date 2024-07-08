@@ -54,6 +54,7 @@ var (
 	ddflag               bool          = false // Data display flag. If true, window has been initialized.
 	tflag                bool          = false // Topic display flag. If true, window has been initialized
 	hideflag             bool          = false // Used by hideWidgetHandler DO NOT DELETE!
+	resetHiLoFlag        bool          = false // Used by edit sensor popup to reset the tmep and humidity highs and lows
 	cancelEdit           bool          = false // Set to true to cancel current edit
 	s_Station_widget     *widget.Entry = widget.NewEntry()
 	s_Name_widget        *widget.Entry = widget.NewEntry()
@@ -64,7 +65,9 @@ var (
 	s_LastEdit_widget    *widget.Label = widget.NewLabel("")
 	s_Hide_widget        *widget.Check = widget.NewCheck("Check to hide sensor on weather dashboard", hideWidgetHandler)
 	s_HasHumidity_widget *widget.Check = widget.NewCheck("Check if sensor also provides humidity", showHumidityHandler)
+	s_ResetHiLo_widget   *widget.Check = widget.NewCheck("Reset Hi/Lo", resetHiLoHandler)
 	selectedValue        string        = ""
+	currentSensor        string        = ""
 	logdata_flg          bool          = false
 	selections           []string
 	sav_Station          string // to restore in case of edit cancel
@@ -146,6 +149,7 @@ func main() {
 		s_Location_widget,
 		s_Hide_widget,
 		s_HasHumidity_widget,
+		s_ResetHiLo_widget,
 		s_Model_widget,
 		s_Id_widget,
 		s_Channel_widget,
