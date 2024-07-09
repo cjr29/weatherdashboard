@@ -86,7 +86,7 @@ func jsonOutput() (e error) {
 	// Declare a configuration structure composed of the structures and maps needed
 	var as = make(map[string]Sensor)
 
-	// retrive all current active sensors, making sure to dereference the address first!
+	// retrieve all current active sensors, making sure to dereference the address first!
 	for key := range activeSensors {
 		a := *activeSensors[key]
 		as[key] = a

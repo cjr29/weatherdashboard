@@ -45,6 +45,7 @@ var (
 	sensorWindow         fyne.Window
 	sensorWindow2        fyne.Window
 	selectSensorWindow   fyne.Window
+	sensorSelectWindow   fyne.Window
 	editSensorWindow     fyne.Window
 	topicWindow          fyne.Window
 	dashboardWindow      fyne.Window
@@ -106,12 +107,14 @@ func main() {
 	addActiveSensorItem := fyne.NewMenuItem("Add Active Sensor", addSensorHandler)
 	removeActiveSensorItem := fyne.NewMenuItem("Remove Active Sensor", removeSensorHandler)
 	editActiveSensorItem := fyne.NewMenuItem("Edit Active Sensor", editSensorHandler)
+	newActiveSensorItem := fyne.NewMenuItem("New Sensor List", newSensorDisplayListHandler)
 	sensorMenu := fyne.NewMenu("Sensors",
 		listActiveSensorsItem,
 		listAvailableSensorsItem,
 		addActiveSensorItem,
 		editActiveSensorItem,
-		removeActiveSensorItem)
+		removeActiveSensorItem,
+		newActiveSensorItem)
 
 	listTopicsItem := fyne.NewMenuItem("List", listTopicsHandler)
 	addTopicItem := fyne.NewMenuItem("New", addTopicHandler)
@@ -169,6 +172,7 @@ func main() {
 	SensorScroller.SetMinSize(fyne.NewSize(550, 500))
 	SensorScroller2.SetMinSize(fyne.NewSize(550, 500))
 	TopicScroller.SetMinSize(fyne.NewSize(300, 200))
+	SensorSelectScroller.SetMinSize(fyne.NewSize(600, 50))
 
 	statusContainer = container.NewVBox(
 		ConsoleScroller,

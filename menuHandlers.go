@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 )
@@ -426,4 +427,12 @@ var dataLoggingOnHandler = func() {
 var dataLoggingOffHandler = func() {
 	logdata_flg = false
 	SetStatus("Data logging turned off")
+}
+
+var newSensorDisplayListHandler = func() {
+	sensorSelectWindow = a.NewWindow("Scrolling list of sensors")
+	sensorSelectWindow.Resize(fyne.NewSize(sensorDisplayWidgetSizeX+20, sensorDisplayWidgetSizeY*10))
+	FillSensorSelectionContainer()
+	sensorSelectWindow.SetContent(SensorSelectScroller)
+	sensorSelectWindow.Show()
 }
