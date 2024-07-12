@@ -36,46 +36,46 @@ var (
 	TopicDisplay    = container.NewVBox()
 	TopicScroller   = container.NewVScroll(TopicDisplay)
 
-	th                  = weatherTheme{}
-	EditSensorContainer *fyne.Container
-	statusContainer     *fyne.Container
+	th = weatherTheme{}
+	// EditSensorContainer *fyne.Container
+	statusContainer *fyne.Container
 	//buttonContainer     *fyne.Container
-	dashboardContainer   *fyne.Container
-	dataWindow           fyne.Window
-	sensorWindow         fyne.Window
-	sensorWindow2        fyne.Window
-	selectSensorWindow   fyne.Window
-	sensorSelectWindow   fyne.Window
-	editSensorWindow     fyne.Window
-	topicWindow          fyne.Window
-	dashboardWindow      fyne.Window
-	dashFlag             bool          = false // Dashboard window flag. If true, window has been initialized.
-	swflag               bool          = false // Sensor window flag. If true, window has been initilized.
-	swflag2              bool          = false // Sensor window2 flag. If true, window has been initilized.
-	ddflag               bool          = false // Data display flag. If true, window has been initialized.
-	tflag                bool          = false // Topic display flag. If true, window has been initialized
-	hideflag             bool          = false // Used by hideWidgetHandler DO NOT DELETE!
-	resetHiLoFlag        bool          = false // Used by edit sensor popup to reset the tmep and humidity highs and lows
-	cancelEdit           bool          = false // Set to true to cancel current edit
-	s_Station_widget     *widget.Entry = widget.NewEntry()
-	s_Name_widget        *widget.Entry = widget.NewEntry()
-	s_Location_widget    *widget.Entry = widget.NewEntry()
-	s_Model_widget       *widget.Label = widget.NewLabel("")
-	s_Id_widget          *widget.Label = widget.NewLabel("")
-	s_Channel_widget     *widget.Label = widget.NewLabel("")
-	s_LastEdit_widget    *widget.Label = widget.NewLabel("")
-	s_Hide_widget        *widget.Check = widget.NewCheck("Check to hide sensor on weather dashboard", hideWidgetHandler)
-	s_HasHumidity_widget *widget.Check = widget.NewCheck("Check if sensor also provides humidity", showHumidityHandler)
-	s_ResetHiLo_widget   *widget.Check = widget.NewCheck("Reset Hi/Lo", resetHiLoHandler)
-	selectedValue        string        = ""
-	currentSensor        string        = ""
-	logdata_flg          bool          = false
-	selections           []string
-	sav_Station          string // to restore in case of edit cancel
-	sav_Name             string
-	sav_Location         string
-	sav_Hide             bool
-	sav_HasHumidity      bool
+	dashboardContainer *fyne.Container
+	dataWindow         fyne.Window
+	sensorWindow       fyne.Window
+	sensorWindow2      fyne.Window
+	selectSensorWindow fyne.Window
+	sensorSelectWindow fyne.Window
+	//editSensorWindow     fyne.Window
+	topicWindow     fyne.Window
+	dashboardWindow fyne.Window
+	dashFlag        bool = false // Dashboard window flag. If true, window has been initialized.
+	swflag2         bool = false // Sensor window2 flag. If true, window has been initilized.
+	ddflag          bool = false // Data display flag. If true, window has been initialized.
+	tflag           bool = false // Topic display flag. If true, window has been initialized
+	inprocessFlag   bool = false // Used to control processing loops
+	hideflag        bool = false // Used by hideWidgetHandler DO NOT DELETE!
+	resetHiLoFlag   bool = false // Used by edit sensor popup to reset the tmep and humidity highs and lows
+	cancelEdit      bool = false // Set to true to cancel current edit
+	// s_Station_widget     *widget.Entry = widget.NewEntry()
+	// s_Name_widget        *widget.Entry = widget.NewEntry()
+	// s_Location_widget    *widget.Entry = widget.NewEntry()
+	// s_Model_widget       *widget.Label = widget.NewLabel("")
+	// s_Id_widget          *widget.Label = widget.NewLabel("")
+	// s_Channel_widget     *widget.Label = widget.NewLabel("")
+	// s_LastEdit_widget    *widget.Label = widget.NewLabel("")
+	// s_Hide_widget        *widget.Check = widget.NewCheck("Check to hide sensor on weather dashboard", hideWidgetHandler)
+	// s_HasHumidity_widget *widget.Check = widget.NewCheck("Check if sensor also provides humidity", showHumidityHandler)
+	// s_ResetHiLo_widget   *widget.Check = widget.NewCheck("Reset Hi/Lo", resetHiLoHandler)
+	selectedValue string = ""
+	currentSensor string = ""
+	logdata_flg   bool   = false
+	selections    []string
+	// sav_Station          string // to restore in case of edit cancel
+	// sav_Name             string
+	// sav_Location         string
+	// sav_Hide             bool
+	// sav_HasHumidity      bool
 )
 
 /**********************************************************************************
@@ -104,9 +104,9 @@ func main() {
 	//**********************************
 	listActiveSensorsItem := fyne.NewMenuItem("List Active Sensors", listSensorsHandler)
 	listAvailableSensorsItem := fyne.NewMenuItem("List Available Sensors", listAvailableSensorsHandler)
-	addActiveSensorItem := fyne.NewMenuItem("Add Active Sensor", addSensorHandler)
-	removeActiveSensorItem := fyne.NewMenuItem("Remove Active Sensor", removeSensorHandler)
-	editActiveSensorItem := fyne.NewMenuItem("Edit Active Sensor", editSensorHandler)
+	addActiveSensorItem := fyne.NewMenuItem("Add Active Sensors", addSensorsHandler)
+	removeActiveSensorItem := fyne.NewMenuItem("Remove Active Sensors", removeSensorsHandler)
+	editActiveSensorItem := fyne.NewMenuItem("Edit Active Sensors", editSensorsHandler)
 	newActiveSensorItem := fyne.NewMenuItem("New Sensor List", newSensorDisplayListHandler)
 	sensorMenu := fyne.NewMenu("Sensors",
 		listActiveSensorsItem,
@@ -145,34 +145,34 @@ func main() {
 
 	// editSensor
 	//
-	EditSensorContainer = container.NewVBox(
-		widget.NewLabel("Update Home, Name, Location, and Visibility, then press Submit to save."),
-		s_Station_widget,
-		s_Name_widget,
-		s_Location_widget,
-		s_Hide_widget,
-		s_HasHumidity_widget,
-		s_ResetHiLo_widget,
-		s_Model_widget,
-		s_Id_widget,
-		s_Channel_widget,
-		s_LastEdit_widget,
-		widget.NewButton("Submit", func() {
-			cancelEdit = false
-			editSensorWindow.Close()
-		}),
-		widget.NewButton("Cancel", func() {
-			cancelEdit = true
-			editSensorWindow.Close()
-		}),
-	)
+	// EditSensorContainer = container.NewVBox(
+	// 	widget.NewLabel("Update Home, Name, Location, and Visibility, then press Submit to save."),
+	// 	s_Station_widget,
+	// 	s_Name_widget,
+	// 	s_Location_widget,
+	// 	s_Hide_widget,
+	// 	s_HasHumidity_widget,
+	// 	s_ResetHiLo_widget,
+	// 	s_Model_widget,
+	// 	s_Id_widget,
+	// 	s_Channel_widget,
+	// 	s_LastEdit_widget,
+	// 	widget.NewButton("Submit", func() {
+	// 		cancelEdit = false
+	// 		//editSensorWindow.Close()
+	// 	}),
+	// 	widget.NewButton("Cancel", func() {
+	// 		cancelEdit = true
+	// 		//editSensorWindow.Close()
+	// 	}),
+	// )
 
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
 	WeatherScroller.SetMinSize(fyne.NewSize(700, 500))
 	SensorScroller.SetMinSize(fyne.NewSize(550, 500))
 	SensorScroller2.SetMinSize(fyne.NewSize(550, 500))
 	TopicScroller.SetMinSize(fyne.NewSize(300, 200))
-	SensorSelectScroller.SetMinSize(fyne.NewSize(600, 50))
+	sensorSelectScroller.SetMinSize(fyne.NewSize(600, 50))
 
 	statusContainer = container.NewVBox(
 		ConsoleScroller,

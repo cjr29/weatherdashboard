@@ -11,7 +11,6 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"sort"
 	"strconv"
@@ -234,25 +233,32 @@ func (ww *weatherWidget) Init(s *Sensor) {
 	ww.sensorStation = s.Station
 	t := time.Now().Local()
 	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
-	s_LastEdit_widget.SetText(st)
 	ww.latestUpdate = st
-	ww.temp = activeSensors[s.Key].Temp
-	ww.humidity = activeSensors[s.Key].Humidity
-	ww.hasHumidity = activeSensors[s.Key].HasHumidity
-	ww.highHumidity = activeSensors[s.Key].HighHumidity
-	ww.lowHumidity = activeSensors[s.Key].LowHumidity
+	// ww.temp = activeSensors[s.Key].Temp
+	ww.temp = s.Temp
+	// ww.humidity = activeSensors[s.Key].Humidity
+	ww.humidity = s.Humidity
+	// ww.hasHumidity = activeSensors[s.Key].HasHumidity
+	ww.hasHumidity = s.HasHumidity
+	// ww.highHumidity = activeSensors[s.Key].HighHumidity
+	ww.highHumidity = s.HighHumidity
+	// ww.lowHumidity = activeSensors[s.Key].LowHumidity
+	ww.lowHumidity = s.LowHumidity
 	ww.highTemp = activeSensors[s.Key].HighTemp
-	ww.lowTemp = activeSensors[s.Key].LowTemp
-	ww.latestUpdate = activeSensors[s.Key].DataDate
+	ww.highTemp = s.HighTemp
+	// ww.lowTemp = activeSensors[s.Key].LowTemp
+	ww.lowTemp = s.LowTemp
+	// ww.latestUpdate = activeSensors[s.Key].DataDate
+	ww.latestUpdate = s.DataDate
 	wwc := make(chan string, 5) // Buffered channel for this sensor
 	ww.channel = wwc
 	ww.goHandler = wwHandler
 }
 
 func (ww *weatherWidget) Tapped(*fyne.PointEvent) {
-	fmt.Println("Widget tapped")
+	// fmt.Println("Widget tapped")
 	// Call handler to edit the widget elements
-	editSpecificSensorHandler(ww.sensorKey)
+	// editSpecificSensorHandler(ww.sensorKey)
 }
 
 func (mc *weatherWidget) TappedSecondary(*fyne.PointEvent) {}
