@@ -36,7 +36,6 @@ var wwHandler func(key string) = func(key string) {
 			return
 		}
 		key := <-c
-		// fmt.Println("Received key: ", key)
 		// If weatherWidget is missing, return because no longer need this handler
 		if !checkWeatherWidget(key) {
 			return
@@ -234,21 +233,14 @@ func (ww *weatherWidget) Init(s *Sensor) {
 	t := time.Now().Local()
 	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
 	ww.latestUpdate = st
-	// ww.temp = activeSensors[s.Key].Temp
 	ww.temp = s.Temp
-	// ww.humidity = activeSensors[s.Key].Humidity
 	ww.humidity = s.Humidity
-	// ww.hasHumidity = activeSensors[s.Key].HasHumidity
 	ww.hasHumidity = s.HasHumidity
-	// ww.highHumidity = activeSensors[s.Key].HighHumidity
 	ww.highHumidity = s.HighHumidity
-	// ww.lowHumidity = activeSensors[s.Key].LowHumidity
 	ww.lowHumidity = s.LowHumidity
 	ww.highTemp = activeSensors[s.Key].HighTemp
 	ww.highTemp = s.HighTemp
-	// ww.lowTemp = activeSensors[s.Key].LowTemp
 	ww.lowTemp = s.LowTemp
-	// ww.latestUpdate = activeSensors[s.Key].DataDate
 	ww.latestUpdate = s.DataDate
 	wwc := make(chan string, 5) // Buffered channel for this sensor
 	ww.channel = wwc
@@ -256,14 +248,13 @@ func (ww *weatherWidget) Init(s *Sensor) {
 }
 
 func (ww *weatherWidget) Tapped(*fyne.PointEvent) {
-	// fmt.Println("Widget tapped")
 	// Call handler to edit the widget elements
-	// editSpecificSensorHandler(ww.sensorKey)
+	editSpecificSensorHandler(ww.sensorKey)
 }
 
 func (mc *weatherWidget) TappedSecondary(*fyne.PointEvent) {}
 
-// sortWeatherWidgets
+// sortWeatherWidgets - returns array of keys for the sorted widgets
 func sortWeatherWidgets() (sortedWWKeys []string) {
 
 	keys := make([]string, 0, len(weatherWidgets))
@@ -279,10 +270,6 @@ func sortWeatherWidgets() (sortedWWKeys []string) {
 		ww2 := weatherWidgets[keys[j]].sensorStation + ":" + weatherWidgets[keys[j]].sensorName
 		return ww1 < ww2
 	})
-
-	// for _, k := range keys {
-	// 	fmt.Println(k)
-	// }
 
 	return keys
 }

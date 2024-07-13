@@ -41,7 +41,11 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 			// Sensor not in available sensors map. Add it.
 			sens := outgoing.GetSensorFromData() // Create Sensor record
 			sens.init(skey)                      // Initialize sensor record
-			availableSensors[skey] = &sens       // Add it to the visible sensors
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@
+			// Lock activeSensors until done
+			activeSensorsMutex.Lock()
+			availableSensors[skey] = &sens // Add it to the visible sensors
+			activeSensorsMutex.Unlock()
 			SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
 		}
 	} else {

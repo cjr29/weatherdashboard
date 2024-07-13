@@ -38,8 +38,6 @@ const (
 var (
 	sensorSelectDisp                   = container.NewVBox()
 	sensorSelectScroller               = container.NewVScroll(sensorSelectDisp)
-	submitButton                       = widget.NewButton("Submit", getSelectedItems)
-	cancelButton                       = widget.NewButton("Cancel", cancelSelection)
 	selectedItems                      map[string]bool
 	resultKeys                         []string // storage for sensor keys selected by user
 	sensorDisplayWidgetBackgroundColor          = color.RGBA{R: 214, G: 240, B: 246, A: 255}
@@ -81,11 +79,12 @@ type sensorDisplayWidgetRenderer struct {
 //
 //	if showChecks, display check boxes
 //	if singleCheck, allow only one box to be checked
-func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool, singleCheck bool) {
-	// Check to be sure window isn't already displayed
-	if (sensorSelectWindow != nil) && sensorSelectWindow.Content().Visible() {
-		return
-	}
+func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool) {
+	var sensorSelectWindow fyne.Window
+	/* 	// Check to be sure window isn't already displayed
+	   	if (sensorSelectWindow != nil) && sensorSelectWindow.Content().Visible() {
+	   		return
+	   	} */
 	showCheckBoxesFlag = showChecks // Set the global flag for widgets to see
 	// Make a slice with capacity of all sensors passed in the argument
 	resultKeys = make([]string, 0, len(sensors))
@@ -99,12 +98,23 @@ func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool, si
 	// Show Submit only if a choice is required
 	if showCheckBoxesFlag {
 		buttonContainer = container.NewHBox(
-			submitButton,
-			cancelButton,
+			widget.NewButton("Submit", func() {
+				for key, value := range selectedItems {
+					if value {
+						resultKeys = append(resultKeys, key)
+					}
+				}
+				sensorSelectWindow.Close()
+			}),
+			widget.NewButton("Cancel", func() {
+				sensorSelectWindow.Close()
+			}),
 		)
 	} else {
 		buttonContainer = container.NewHBox(
-			cancelButton,
+			widget.NewButton("Cancel", func() {
+				sensorSelectWindow.Close()
+			}),
 		)
 	}
 	overallContainer := container.NewBorder(
@@ -118,33 +128,24 @@ func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool, si
 	sensorSelectWindow.Show()
 }
 
-// var processSelection = func() {
 func processSelection() {
-	fmt.Println("processSelections")
+
 	// Loop over selected sensors to edit
 	if len(resultKeys) == 0 {
-		fmt.Println("No selection")
 		return
 	}
 	for _, key := range resultKeys {
-		// Open an edit window for each selected sensor
 
-		// Pause until edit finished for previous sensor
-		// for inprocessFlag {
-		// 	// set timer for 5 secs
-		// 	time.Sleep(5 * time.Second)
-		// }
-
-		fmt.Println("editSensorHandler: sensor ", key)
-		// Get key for selected sensor - Key: field of value
-		// key := strings.Split(selectedValue, "Key: ")[1] // Found at end of the displayed string after "Key: ..."
 		// Load widgets using selected sensor
+		resetHiLoFlag := false
 		s := activeSensors[key]
+		// Save values in case edit is canceled by user
 		sav_Station := s.Station
 		sav_Name := s.Name
 		sav_Location := s.Location
 		sav_Hide := s.Hide
 		sav_HasHumidity := s.HasHumidity
+		// Load form fields
 		s_Station_widget := widget.NewEntry()
 		s_Station_widget.SetText(s.Station)
 		s_Station_widget.SetPlaceHolder("Home")
@@ -158,7 +159,14 @@ func processSelection() {
 		s_Hide_widget.SetChecked(s.Hide)
 		s_HasHumidity_widget := widget.NewCheck("Check if sensor also provides humidity", showHumidityHandler)
 		s_HasHumidity_widget.SetChecked(s.HasHumidity)
-		s_ResetHiLo_widget := widget.NewCheck("Reset Hi/Lo", resetHiLoHandler)
+		s_ResetHiLo_widget := widget.NewCheck("Reset Hi/Lo", func(value bool) {
+			if value {
+				s.HighTemp = s.Temp
+				s.LowTemp = s.Temp
+				s.HighHumidity = s.Humidity
+				s.LowHumidity = s.Humidity
+			}
+		})
 		s_ResetHiLo_widget.SetChecked(false)
 		s_Model_widget := widget.NewLabel("")
 		s_Model_widget.SetText(s.Model)
@@ -170,8 +178,6 @@ func processSelection() {
 		st := t.Format(YYYYMMDD + " " + HHMMSS24h)
 		s_LastEdit_widget := widget.NewLabel("")
 		s_LastEdit_widget.SetText(st)
-		SetStatus(fmt.Sprintf("Last edit set to %s", st))
-		//selectSensorWindow.Close()
 		// Pop up a window to let user edit record, then save the record
 		editSensorWindow := a.NewWindow("Edit active sensor properties.")
 		editSensorContainer := container.NewVBox(
@@ -189,14 +195,29 @@ func processSelection() {
 			widget.NewButton("Submit", func() {
 				// Save updated record back to activeSensors
 				// First be sure that there is a widget record. User may have cleared the Hide flag, expecting a new sensor to display
-				SetStatus(fmt.Sprintf("Saving updated sensor record: %s", s_Name_widget.Text+":"+key))
+				SetStatus(fmt.Sprintf("Saving updated sensor record for  %s", s_Name_widget.Text))
 				s.Station = s_Station_widget.Text
 				s.Name = s_Name_widget.Text
 				s.Location = s_Location_widget.Text
 				s.Hide = s_Hide_widget.Checked
 				s.HasHumidity = s_HasHumidity_widget.Checked
 				s.LastEdit = st
+				if resetHiLoFlag {
+					s.HighTemp = s.Temp
+					s.LowTemp = s.Temp
+					s.HighHumidity = s.Humidity
+					s.LowHumidity = s.Humidity
+				}
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				// Lock activeSensors until done
+				activeSensorsMutex.Lock()
 				activeSensors[key] = s
+				activeSensorsMutex.Unlock()
+				// Unlock activeSensors
+				// If dashboard is visible, reload it since we changed a sensor in a widget
+				if dashFlag {
+					reloadDashboard()
+				}
 				editSensorWindow.Close()
 			}),
 			widget.NewButton("Cancel", func() {
@@ -210,7 +231,7 @@ func processSelection() {
 			}),
 		)
 		editSensorWindow.SetContent(editSensorContainer)
-		fmt.Println("Showing edit window for sensor ", s.Station)
+
 		editSensorWindow.Show()
 	}
 }
@@ -240,7 +261,7 @@ func fillSensorSelectionContainer(sensors map[string]*Sensor) {
 	sensorSelectDisp.Refresh()
 }
 
-// Ranges through the sensorSelectDisp container, checking each item for a checked box
+/* // Ranges through the sensorSelectDisp container, checking each item for a checked box
 func getSelectedItems() {
 	for key, value := range selectedItems {
 		if value {
@@ -248,36 +269,14 @@ func getSelectedItems() {
 		}
 	}
 
-	// TESTING - remove for production
-	for _, value := range resultKeys {
-		fmt.Printf("Sensor %s selected\n", value)
-	}
-	// TESTING
-
-	sensorSelectWindow.Close()
-	sensorSelectWindow = nil
+	// sensorSelectWindow.Close()
+	// sensorSelectWindow = nil
 }
 
 func cancelSelection() {
-	sensorSelectWindow.Close()
-	sensorSelectWindow = nil
-}
-
-// function to check if a bool value present in the map
-// func checkForBool(b bool, m map[string]bool) bool {
-
-// 	//traverse through the map
-// 	for _, value := range m {
-// 		//check if present value is equals to b
-// 		if value == b {
-// 			//if same return true
-// 			return true
-// 		}
-// 	}
-
-// 	//if value not found return false
-// 	return false
-// }
+	// sensorSelectWindow.Close()
+	// sensorSelectWindow = nil
+} */
 
 /******************************************
  * Renderer Methods

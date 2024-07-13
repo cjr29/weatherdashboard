@@ -23,11 +23,9 @@ import (
 //*************************************************
 
 // HANDLER FOR EDIT ACTIVE SENSOR
-var editSensorsHandler = func() {
-	chooseSensors("Select Sensors to Edit", activeSensors, true, false) // Results in global slice resultKeys
-	fmt.Println("Returned from chooseSensors")
-
-}
+// var editSensorsHandler = func() {
+// 	chooseSensors("Select Sensors to Edit", activeSensors, true) // Results in global slice resultKeys
+// }
 
 var hideWidgetHandler = func(value bool) {
 	hideflag = value
@@ -36,18 +34,10 @@ var hideWidgetHandler = func(value bool) {
 var showHumidityHandler = func(value bool) {
 }
 
-var resetHiLoHandler = func(value bool) {
-	if value {
-		resetHiLoFlag = true
-		return
-	}
-	resetHiLoFlag = false
-}
-
 // LIST ACTIVE SENSORS
-var listSensorsHandler = func() {
-	chooseSensors("Active Sensors", activeSensors, false, false) // Results in global slice resultKeys
-}
+// var listSensorsHandler = func() {
+// 	chooseSensors("Active Sensors", activeSensors, false) // Results in global slice resultKeys
+// }
 
 // LIST AVAILABLE SENSORS
 var listAvailableSensorsHandler = func() {
@@ -72,14 +62,14 @@ var listAvailableSensorsHandler = func() {
 var addSensorsHandler = func() {
 	addSensorWindow := a.NewWindow("Select Sensors to add to active list")
 	vlist := buildSensorList(availableSensors) // Get list of visible sensors
+	selections := make([]string, 0)
 	pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
-		selections = choices
+		selections = append(selections, choices...)
 	})
 	addSensorContainer := container.NewVBox(
 		widget.NewLabel("Select all sensors to be added to the active sensors list"),
 		pickSensors,
 		widget.NewButton("Submit", func() {
-			// SetStatus("Submit pressed to add selected sensors to active list.")
 			// Process selected sensors and add to the active sensors map
 			for i := 0; i < len(selections); i++ {
 				// Get key for selected sensor - Key: field of value
@@ -100,47 +90,18 @@ var addSensorsHandler = func() {
 	addSensorWindow.Show()
 }
 
-// EDIT ACTIVE SENSOR
-// var editSensorHandler = func() {
-
-// selectSensorWindow = a.NewWindow("Select a Sensor to edit from the Active Sensors list")
-// vlist := buildSensorList(activeSensors) // Get list of visible sensors
-// pickSensor := widget.NewSelect(vlist, selectionHandler)
-// header := widget.NewLabel("Pick a sensor to edit. Use the toggle to scroll through active sensors to find sensor to edit. ***************************" +
-// 	"******************************************")
-// pickSensorContainer := container.NewVBox(header, pickSensor)
-// selectSensorWindow.SetContent(pickSensorContainer)
-// selectSensorWindow.Show()
-// }
-
-// EDIT SPECIFIC SENSOR (in widget when tapped)
-var editSpecificSensorHandler = func(key string) {
+// editSpecificSensorHandler
+func editSpecificSensorHandler(key string) {
+	resetHiLoFlag := false
+	// Load widget using selected sensor
 	s := activeSensors[key]
-	// sav_Station = s.Station
-	// sav_Name = s.Name
-	// sav_Location = s.Location
-	// sav_Hide = s.Hide
-	// sav_HasHumidity = s.HasHumidity
-	// s_Station_widget.SetText(s.Station)
-	// s_Station_widget.SetPlaceHolder("Home")
-	// s_Name_widget.SetText(s.Name)
-	// s_Name_widget.SetPlaceHolder("Name")
-	// s_Location_widget.SetText(s.Location)
-	// s_Location_widget.SetPlaceHolder("Location")
-	// s_Hide_widget.SetChecked(s.Hide)
-	// s_HasHumidity_widget.SetChecked(s.HasHumidity)
-	// s_ResetHiLo_widget.SetChecked(false)
-	// s_Model_widget.SetText(s.Model)
-	// s_Id_widget.SetText(strconv.Itoa(s.Id))
-	// s_Channel_widget.SetText(s.Channel)
-	// t := time.Now().Local()
-	// st := t.Format(YYYYMMDD + " " + HHMMSS24h)
-	// s_LastEdit_widget.SetText(st)
+	// Save values in case edit is canceled by user
 	sav_Station := s.Station
 	sav_Name := s.Name
 	sav_Location := s.Location
 	sav_Hide := s.Hide
 	sav_HasHumidity := s.HasHumidity
+	// Load form fields
 	s_Station_widget := widget.NewEntry()
 	s_Station_widget.SetText(s.Station)
 	s_Station_widget.SetPlaceHolder("Home")
@@ -154,7 +115,11 @@ var editSpecificSensorHandler = func(key string) {
 	s_Hide_widget.SetChecked(s.Hide)
 	s_HasHumidity_widget := widget.NewCheck("Check if sensor also provides humidity", showHumidityHandler)
 	s_HasHumidity_widget.SetChecked(s.HasHumidity)
-	s_ResetHiLo_widget := widget.NewCheck("Reset Hi/Lo", resetHiLoHandler)
+	s_ResetHiLo_widget := widget.NewCheck("Reset Hi/Lo", func(value bool) {
+		if value {
+			resetHiLoFlag = true
+		}
+	})
 	s_ResetHiLo_widget.SetChecked(false)
 	s_Model_widget := widget.NewLabel("")
 	s_Model_widget.SetText(s.Model)
@@ -167,8 +132,13 @@ var editSpecificSensorHandler = func(key string) {
 	s_LastEdit_widget := widget.NewLabel("")
 	s_LastEdit_widget.SetText(st)
 	SetStatus(fmt.Sprintf("Last edit set to %s", st))
+
 	// Pop up a window to let user edit record, then save the record
 	editSensorWindow := a.NewWindow("Edit active sensor properties.")
+	editSensorWindow.SetOnClosed(func() {
+		// Reload and display the updated widgets in dashboard
+		reloadDashboard()
+	})
 	editSensorContainer := container.NewVBox(
 		widget.NewLabel("Update Home, Name, Location, and Visibility, then press Submit to save."),
 		s_Station_widget,
@@ -191,7 +161,19 @@ var editSpecificSensorHandler = func(key string) {
 			s.Hide = s_Hide_widget.Checked
 			s.HasHumidity = s_HasHumidity_widget.Checked
 			s.LastEdit = st
+			if resetHiLoFlag {
+				s.HighTemp = s.Temp
+				s.LowTemp = s.Temp
+				s.HighHumidity = s.Humidity
+				s.LowHumidity = s.Humidity
+			}
+			resetHiLoFlag = false
+			//@@@@@@@@@@@@@@@@@@@@@@@@@@@
+			// Lock activeSensors until done
+			activeSensorsMutex.Lock()
 			activeSensors[key] = s
+			// Unlock activeSensors
+			activeSensorsMutex.Unlock()
 			editSensorWindow.Close()
 		}),
 		widget.NewButton("Cancel", func() {
@@ -201,46 +183,12 @@ var editSpecificSensorHandler = func(key string) {
 			s_Location_widget.SetText(sav_Location)
 			s_Hide_widget.SetChecked(sav_Hide)
 			s_HasHumidity_widget.SetChecked(sav_HasHumidity)
+			resetHiLoFlag = false
 			editSensorWindow.Close()
 		}),
 	)
 	editSensorWindow.SetContent(editSensorContainer)
-	editSensorWindow.SetOnClosed(func() {
-		if cancelEdit {
-			cancelEdit = false // reset flag for next time
-			// Restore orginal values
-			s_Station_widget.SetText(sav_Station)
-			s_Name_widget.SetText(sav_Name)
-			s_Location_widget.SetText(sav_Location)
-			s_Hide_widget.SetChecked(sav_Hide)
-			s_HasHumidity_widget.SetChecked(sav_HasHumidity)
-			editSensorWindow.Close()
-			return
-		}
-		// Save updated record back to activeSensors
-		// First be sure that there is a widget record. User may have cleared the Hide flag, expecting a new sensor to display
-		if !checkWeatherWidget(key) {
-			// Sensor doesn't exist, regenerate the weather widgets
-			generateWeatherWidgets()
-			dashboardContainer.Refresh()
-		}
-		SetStatus(fmt.Sprintf("Saving updated sensor record: %s", s_Name_widget.Text+":"+key))
-		s.Station = s_Station_widget.Text
-		s.Name = s_Name_widget.Text
-		s.Location = s_Location_widget.Text
-		s.Hide = s_Hide_widget.Checked
-		s.HasHumidity = s_HasHumidity_widget.Checked
-		s.LastEdit = st
-		if resetHiLoFlag {
-			s.HighTemp = s.Temp
-			s.LowTemp = s.Temp
-			s.HighHumidity = s.Humidity
-			s.LowHumidity = s.Humidity
-		}
-		activeSensors[key] = s
-		reloadDashboard()
-		editSensorWindow.Close()
-	})
+
 	editSensorWindow.Show()
 }
 
@@ -248,8 +196,9 @@ var editSpecificSensorHandler = func(key string) {
 var removeSensorsHandler = func() {
 	removeSensorWindow := a.NewWindow("Select Sensors to remove from active list")
 	vlist := buildSensorList(activeSensors) // Get list of active sensors
+	selections := make([]string, 0)
 	pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
-		selections = choices
+		selections = append(selections, choices...)
 	})
 	removeSensorScroller := container.NewVScroll(
 		pickSensors,
@@ -331,8 +280,9 @@ var removeTopicHandler = func() {
 	for _, m := range tlist {
 		choices = append(choices, m.Display)
 	}
+	selections := make([]string, 0)
 	pickTopics := widget.NewCheckGroup(choices, func(c []string) {
-		selections = c
+		selections = append(selections, c...)
 	})
 	delTopicContainer := container.NewVBox(
 		widget.NewLabel("Select the topic you want to remove from subscribing."),
@@ -403,5 +353,5 @@ var dataLoggingOffHandler = func() {
 }
 
 var newSensorDisplayListHandler = func() {
-	chooseSensors("Choose one or more sensors", activeSensors, true, true) // Results in global slice resultKeys
+	chooseSensors("Choose one or more sensors", activeSensors, true) // Results in global slice resultKeys
 }
