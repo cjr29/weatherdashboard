@@ -80,6 +80,10 @@ type sensorDisplayWidgetRenderer struct {
 //	if showChecks, display check boxes
 //	if singleCheck, allow only one box to be checked
 func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool) {
+	if listActiveSensorsFlag {
+		return
+	}
+	listActiveSensorsFlag = true
 	var sensorSelectWindow fyne.Window
 	/* 	// Check to be sure window isn't already displayed
 	   	if (sensorSelectWindow != nil) && sensorSelectWindow.Content().Visible() {
@@ -91,7 +95,10 @@ func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool) {
 
 	// Prepare the containers and widgets to display the selection list
 	sensorSelectWindow = a.NewWindow(title)
-	sensorSelectWindow.SetOnClosed(processSelection)
+	sensorSelectWindow.SetOnClosed(func() {
+		listActiveSensorsFlag = false
+		processSelection()
+	})
 	sensorSelectWindow.Resize(fyne.NewSize(sensorDisplayWidgetSizeX+20, sensorDisplayWidgetSizeY*10))
 	fillSensorSelectionContainer(sensors)
 	var buttonContainer *fyne.Container
@@ -104,15 +111,18 @@ func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool) {
 						resultKeys = append(resultKeys, key)
 					}
 				}
+				listActiveSensorsFlag = false
 				sensorSelectWindow.Close()
 			}),
 			widget.NewButton("Cancel", func() {
+				listActiveSensorsFlag = false
 				sensorSelectWindow.Close()
 			}),
 		)
 	} else {
 		buttonContainer = container.NewHBox(
 			widget.NewButton("Cancel", func() {
+				listActiveSensorsFlag = false
 				sensorSelectWindow.Close()
 			}),
 		)
@@ -129,7 +139,6 @@ func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool) {
 }
 
 func processSelection() {
-
 	// Loop over selected sensors to edit
 	if len(resultKeys) == 0 {
 		return
@@ -218,6 +227,7 @@ func processSelection() {
 				if dashFlag {
 					reloadDashboard()
 				}
+				listActiveSensorsFlag = false
 				editSensorWindow.Close()
 			}),
 			widget.NewButton("Cancel", func() {

@@ -42,14 +42,16 @@ var (
 	dataWindow         fyne.Window
 	sensorWindow2      fyne.Window
 	// sensorSelectWindow fyne.Window
-	topicWindow     fyne.Window
-	dashboardWindow fyne.Window
-	dashFlag        bool = false // Dashboard window flag. If true, window has been initialized.
-	swflag2         bool = false // Sensor window2 flag. If true, window has been initilized.
-	ddflag          bool = false // Data display flag. If true, window has been initialized.
-	tflag           bool = false // Topic display flag. If true, window has been initialized
-	hideflag        bool = false // Used by hideWidgetHandler DO NOT DELETE!
-	logdata_flg     bool = false
+	topicWindow              fyne.Window
+	dashboardWindow          fyne.Window
+	dashFlag                 bool = false // Dashboard window flag. If true, window has been initialized.
+	listActiveSensorsFlag    bool = false
+	listAvailableSensorsFlag bool = false // Sensor window2 flag. If true, window has been initilized.
+	addActiveSensorsFlag     bool = false
+	ddflag                   bool = false // Data display flag. If true, window has been initialized.
+	tflag                    bool = false // Topic display flag. If true, window has been initialized
+	hideflag                 bool = false // Used by hideWidgetHandler DO NOT DELETE!
+	logdata_flg              bool = false
 	// selections      []string
 )
 

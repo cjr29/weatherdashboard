@@ -42,25 +42,32 @@ var showHumidityHandler = func(value bool) {
 // LIST AVAILABLE SENSORS
 var listAvailableSensorsHandler = func() {
 	// Get displayable list of sensors
-	if !swflag2 {
+	if !listAvailableSensorsFlag {
 		sensorWindow2 = a.NewWindow("Available Sensors")
 		DisplaySensors2(availableSensors)
 		sensorWindow2.SetContent(SensorScroller2)
 		sensorWindow2.SetOnClosed(func() {
-			swflag2 = false
+			listAvailableSensorsFlag = false
 		})
-		swflag2 = true
+		listAvailableSensorsFlag = true
 		sensorWindow2.Show()
 	} else {
 		DisplaySensors2(availableSensors)
 		sensorWindow2.Show()
-		swflag2 = true
+		listAvailableSensorsFlag = true
 	}
 }
 
 // ADD ACTIVE SENSOR
 var addSensorsHandler = func() {
+	if addActiveSensorsFlag {
+		return
+	}
+	addActiveSensorsFlag = true
 	addSensorWindow := a.NewWindow("Select Sensors to add to active list")
+	addSensorWindow.SetOnClosed(func() {
+		addActiveSensorsFlag = false
+	})
 	vlist := buildSensorList(availableSensors) // Get list of visible sensors
 	selections := make([]string, 0)
 	pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
@@ -83,6 +90,7 @@ var addSensorsHandler = func() {
 					SetStatus(fmt.Sprintf("Added sensor to active sensors: %s", key))
 				}
 			}
+			addActiveSensorsFlag = false
 			addSensorWindow.Close()
 		}),
 	)
