@@ -107,16 +107,6 @@ type Broker struct {
 	Pwd  string `json:"Pwd"`
 }
 
-// type latestData struct {
-// 	Temp         float64 `json:"Temp"`
-// 	Humidity     float64 `json:"Humidity"`
-// 	Date         string  `json:"Date"`
-// 	HighTemp     float64 `json:"HighTemp"`
-// 	LowTemp      float64 `json:"LowTemp"`
-// 	HighHumidity float64 `json:"HighHumidity"`
-// 	LowHumidity  float64 `json:"LowHumidity"`
-// }
-
 type newData struct {
 	key      string
 	temp     float64
@@ -334,10 +324,6 @@ func sortActiveSensors() (sortedSensorKeys []string) {
 		s2 := activeSensors[keys[j]].Station + ":" + activeSensors[keys[j]].Name
 		return s1 < s2
 	})
-
-	// for _, k := range keys {
-	// 	fmt.Println(k)
-	// }
 
 	return keys
 }

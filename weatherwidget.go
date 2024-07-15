@@ -27,7 +27,6 @@ var (
 
 // Goroutine to run for each weather widget to watch for channel messages
 var wwHandler func(key string) = func(key string) {
-	//fmt.Printf("wwHandler for %s - %s started.\n", weatherWidgets[key].sensorName, key)
 	// Loop forever
 	var c = weatherWidgets[key].channel
 	for {

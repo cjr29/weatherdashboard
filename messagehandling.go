@@ -136,7 +136,6 @@ func sub(client mqtt.Client) {
 }
 
 func unsubscribe(client mqtt.Client, msg Message) {
-	//SetStatus(fmt.Sprintf("Unsubscribing from topic ==> %s", m.Topic))
 	client.Unsubscribe(msg.Topic)
 	SetStatus(fmt.Sprintf("Unsubscribed from topic %s", msg.Topic))
 }
@@ -154,7 +153,6 @@ func (t *CustomChannel) UnmarshalJSON(data []byte) error {
 		// Try to convert int to string before failing
 		var channelInt int
 		if err := json.Unmarshal(data, &channelInt); err != nil {
-			// log.Println("Can't unmarshal the channel field")
 			SetStatus("Can't unmarshal the channel field")
 		}
 		t.Channel = strconv.Itoa(channelInt)
@@ -184,14 +182,14 @@ func checkMessage(key int, m map[int]Message) bool {
 }
 
 // Create sensor list
-func buildSensorList(m map[string]*Sensor) []string {
-	var list []string
-	for s := range m {
-		sens := *m[s]
-		list = append(list, sens.FormatSensor(1))
-	}
-	return list
-}
+// func buildSensorList(m map[string]*Sensor) []string {
+// 	var list []string
+// 	for s := range m {
+// 		sens := *m[s]
+// 		list = append(list, sens.FormatSensor(1))
+// 	}
+// 	return list
+// }
 
 // Create message (topic) list
 func buildMessageList(m map[int]Message) []ChoicesIntKey {

@@ -40,9 +40,9 @@ var (
 	statusContainer    *fyne.Container
 	dashboardContainer *fyne.Container
 	dataWindow         fyne.Window
-	sensorWindow2      fyne.Window
-	topicWindow        fyne.Window
-	dashboardWindow    fyne.Window
+	//	sensorWindow2      fyne.Window
+	topicWindow     fyne.Window
+	dashboardWindow fyne.Window
 
 	// Allow only one instance of any of these windows to be opened at a time
 	dashFlag                 bool = false // Dashboard window flag. If true, window has been initialized.

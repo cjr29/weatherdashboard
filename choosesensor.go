@@ -5,11 +5,11 @@
  *      sensors from the list. Once user presses Submit, updates an
  *      array of sensor keys, resultKeys, that can be used for processing.
  *   title is the heading to be displayed at top of window frame
- *   showChecks set to true to show selection check boxes
- *   singleCheck set to true to allow only one box to be checked
+ *   sensors is the sensor map to use for the selections
+ *   action is the process to be performed on the selected sensors
  *
  * Usage:
- *      chooseSensors(title string, sensors map[string]*Sensor, showChecks bool, singleCheck bool)
+ *      chooseSensors(title string, sensors map[string]*Sensor, action Action)
  *
  ******************************************************************/
 
@@ -47,9 +47,6 @@ const (
 )
 
 var (
-	// sensorSelectDisp     = container.NewVBox()
-	// sensorSelectScroller = container.NewVScroll(sensorSelectDisp)
-	// selectedItems                      map[string]bool
 	resultKeys                         []string // storage for sensor keys selected by user
 	sensorDisplayWidgetBackgroundColor          = color.RGBA{R: 214, G: 240, B: 246, A: 255}
 	sensorDisplayWidgetForegroundColor          = color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xFF} // Black
@@ -150,10 +147,7 @@ func chooseSensors(title string, sensors map[string]*Sensor, action Action) {
 		temp := sensorDisplayWidget{}
 		temp.Lock()
 		temp.init(sens)
-		// activeSensorsMutex.Lock()
-		// a := *activeSensors[key]
 		a := sensors[key]
-		// activeSensorsMutex.Unlock()
 		temp.station = a.Station
 		temp.name = a.Name
 		temp.model = a.Model
@@ -174,7 +168,6 @@ func chooseSensors(title string, sensors map[string]*Sensor, action Action) {
 	if showCheckBoxesFlag {
 		buttonContainer = container.NewHBox(
 			widget.NewButton("Submit", func() {
-				// for key, value := range selectedItems {
 				for _, value := range choices {
 					value.Lock()
 					if value.check {
@@ -530,7 +523,6 @@ func (sdw *sensorDisplayWidget) UpdateDate() {
 
 // Initialize fields of a sensorDisplayWidget using data from Sensor
 func (sdw *sensorDisplayWidget) init(s *Sensor) {
-	// activeSensorsMutex.Lock()
 	sdw.sensorKey = s.Key
 	sdw.name = s.Name
 	sdw.station = s.Station
@@ -540,5 +532,4 @@ func (sdw *sensorDisplayWidget) init(s *Sensor) {
 	sdw.latestUpdate = s.LastEdit
 	sdw.hasHumidity = s.HasHumidity
 	sdw.check = false
-	// activeSensorsMutex.Unlock()
 }

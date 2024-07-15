@@ -22,81 +22,12 @@ import (
 // Menu action handlers
 //*************************************************
 
-// HANDLER FOR EDIT ACTIVE SENSOR
-// var editSensorsHandler = func() {
-// 	chooseSensors("Select Sensors to Edit", activeSensors, true) // Results in global slice resultKeys
-// }
-
 var hideWidgetHandler = func(value bool) {
 	hideflag = value
 }
 
 var showHumidityHandler = func(value bool) {
 }
-
-// LIST ACTIVE SENSORS
-// var listSensorsHandler = func() {
-// 	chooseSensors("Active Sensors", activeSensors, false) // Results in global slice resultKeys
-// }
-
-/* // LIST AVAILABLE SENSORS
-var listAvailableSensorsHandler = func() {
-	// Get displayable list of sensors
-	if !listAvailableSensorsFlag {
-		sensorWindow2 = a.NewWindow("Available Sensors")
-		DisplaySensors2(availableSensors)
-		sensorWindow2.SetContent(SensorScroller2)
-		sensorWindow2.SetOnClosed(func() {
-			listAvailableSensorsFlag = false
-		})
-		listAvailableSensorsFlag = true
-		sensorWindow2.Show()
-	} else {
-		DisplaySensors2(availableSensors)
-		sensorWindow2.Show()
-		listAvailableSensorsFlag = true
-	}
-} */
-
-// ADD ACTIVE SENSOR
-/* var addSensorsHandler = func() {
-	if addActiveSensorsFlag {
-		return
-	}
-	addActiveSensorsFlag = true
-	addSensorWindow := a.NewWindow("Select Sensors to add to active list")
-	addSensorWindow.SetOnClosed(func() {
-		addActiveSensorsFlag = false
-	})
-	vlist := buildSensorList(availableSensors) // Get list of visible sensors
-	selections := make([]string, 0)
-	pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
-		selections = append(selections, choices...)
-	})
-	addSensorContainer := container.NewVBox(
-		widget.NewLabel("Select all sensors to be added to the active sensors list"),
-		pickSensors,
-		widget.NewButton("Submit", func() {
-			// Process selected sensors and add to the active sensors map
-			for i := 0; i < len(selections); i++ {
-				// Get key for selected sensor - Key: field of value
-				key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
-				// Load widgets using selected sensor
-				if checkSensor(key, availableSensors) && !availableSensors[key].Hide {
-					// Add sensors to activeSensors map - TBD
-					s := *availableSensors[key]
-					activeSensors[key] = &s
-					reloadDashboard()
-					SetStatus(fmt.Sprintf("Added sensor to active sensors: %s", key))
-				}
-			}
-			addActiveSensorsFlag = false
-			addSensorWindow.Close()
-		}),
-	)
-	addSensorWindow.SetContent(addSensorContainer)
-	addSensorWindow.Show()
-} */
 
 // editSpecificSensorHandler - Used by dashboard widgets to edit a tapped widget
 func editSpecificSensorHandler(key string) {
@@ -176,12 +107,7 @@ func editSpecificSensorHandler(key string) {
 				s.LowHumidity = s.Humidity
 			}
 			resetHiLoFlag = false
-			//@@@@@@@@@@@@@@@@@@@@@@@@@@@
-			// Lock activeSensors until done
-			// activeSensorsMutex.Lock()
 			activeSensors[key] = s
-			// Unlock activeSensors
-			// activeSensorsMutex.Unlock()
 			editSensorWindow.Close()
 		}),
 		widget.NewButton("Cancel", func() {
@@ -201,7 +127,7 @@ func editSpecificSensorHandler(key string) {
 }
 
 // REMOVE ACTIVE SENSOR
-var removeSensorsHandler = func() {
+/* var removeSensorsHandler = func() {
 	removeSensorWindow := a.NewWindow("Select Sensors to remove from active list")
 	vlist := buildSensorList(activeSensors) // Get list of active sensors
 	selections := make([]string, 0)
@@ -232,7 +158,7 @@ var removeSensorsHandler = func() {
 	)
 	removeSensorWindow.SetContent(removeSensorContainer)
 	removeSensorWindow.Show()
-}
+} */
 
 // LIST TOPIC
 var listTopicsHandler = func() {
@@ -359,7 +285,3 @@ var dataLoggingOffHandler = func() {
 	logdata_flg = false
 	SetStatus("Data logging turned off")
 }
-
-// var newSensorDisplayListHandler = func() {
-// 	chooseSensors("Choose one or more sensors", activeSensors, List) // Results in global slice resultKeys
-// }
