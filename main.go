@@ -41,9 +41,10 @@ var (
 	dashboardContainer *fyne.Container
 	dataWindow         fyne.Window
 	sensorWindow2      fyne.Window
-	// sensorSelectWindow fyne.Window
-	topicWindow              fyne.Window
-	dashboardWindow          fyne.Window
+	topicWindow        fyne.Window
+	dashboardWindow    fyne.Window
+
+	// Allow only one instance of any of these windows to be opened at a time
 	dashFlag                 bool = false // Dashboard window flag. If true, window has been initialized.
 	listActiveSensorsFlag    bool = false
 	listAvailableSensorsFlag bool = false
@@ -52,9 +53,10 @@ var (
 	removeActiveSensorsFlag  bool = false
 	ddflag                   bool = false // Data display flag. If true, window has been initialized.
 	tflag                    bool = false // Topic display flag. If true, window has been initialized
-	hideflag                 bool = false // Used by hideWidgetHandler DO NOT DELETE!
-	logdata_flg              bool = false
-	// selections      []string
+	// end of window flags
+
+	hideflag    bool = false // Used by hideWidgetHandler DO NOT DELETE!
+	logdata_flg bool = false
 )
 
 /**********************************************************************************
@@ -80,26 +82,37 @@ func main() {
 	//  Prepare Menus
 	//**********************************
 	listActiveSensorsItem := fyne.NewMenuItem("List Active Sensors", func() {
-		chooseSensors("Active Sensors", activeSensors, ListActive) // Results in global slice resultKeys
+		if !listActiveSensorsFlag {
+			chooseSensors("Active Sensors", activeSensors, ListActive)
+		}
 	})
 	listAvailableSensorsItem := fyne.NewMenuItem("List Available Sensors", func() {
-		chooseSensors("Available Sensors", availableSensors, ListAvail) // Results in global slice resultKeys
+		if !listAvailableSensorsFlag {
+			chooseSensors("Available Sensors", availableSensors, ListAvail)
+		}
 	})
 	addActiveSensorItem := fyne.NewMenuItem("Add Active Sensors", func() {
-		chooseSensors("Select Sensors to Add", availableSensors, Add) // Results in global slice resultKeys
+		if !addActiveSensorsFlag {
+			chooseSensors("Select Sensors to Add", availableSensors, Add)
+		}
 	})
-	removeActiveSensorItem := fyne.NewMenuItem("Remove Active Sensors", removeSensorsHandler)
+	removeActiveSensorItem := fyne.NewMenuItem("Remove Active Sensors", func() {
+		if !removeActiveSensorsFlag {
+			chooseSensors("Select Sensors to Remove", activeSensors, Remove)
+		}
+	})
 	editActiveSensorItem := fyne.NewMenuItem("Edit Active Sensors", func() {
-		chooseSensors("Select Sensors to Edit", activeSensors, Edit) // Results in global slice resultKeys
+		if !editActiveSensorsFlag {
+			chooseSensors("Select Sensors to Edit", activeSensors, Edit)
+		}
 	})
-	// newActiveSensorItem := fyne.NewMenuItem("New Sensor List", newSensorDisplayListHandler)
+
 	sensorMenu := fyne.NewMenu("Sensors",
 		listActiveSensorsItem,
 		listAvailableSensorsItem,
 		addActiveSensorItem,
 		editActiveSensorItem,
 		removeActiveSensorItem,
-		// newActiveSensorItem,
 	)
 
 	listTopicsItem := fyne.NewMenuItem("List", listTopicsHandler)
