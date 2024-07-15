@@ -39,7 +39,7 @@ var showHumidityHandler = func(value bool) {
 // 	chooseSensors("Active Sensors", activeSensors, false) // Results in global slice resultKeys
 // }
 
-// LIST AVAILABLE SENSORS
+/* // LIST AVAILABLE SENSORS
 var listAvailableSensorsHandler = func() {
 	// Get displayable list of sensors
 	if !listAvailableSensorsFlag {
@@ -56,10 +56,10 @@ var listAvailableSensorsHandler = func() {
 		sensorWindow2.Show()
 		listAvailableSensorsFlag = true
 	}
-}
+} */
 
 // ADD ACTIVE SENSOR
-var addSensorsHandler = func() {
+/* var addSensorsHandler = func() {
 	if addActiveSensorsFlag {
 		return
 	}
@@ -96,9 +96,9 @@ var addSensorsHandler = func() {
 	)
 	addSensorWindow.SetContent(addSensorContainer)
 	addSensorWindow.Show()
-}
+} */
 
-// editSpecificSensorHandler
+// editSpecificSensorHandler - Used by dashboard widgets to edit a tapped widget
 func editSpecificSensorHandler(key string) {
 	resetHiLoFlag := false
 	// Load widget using selected sensor
@@ -178,10 +178,10 @@ func editSpecificSensorHandler(key string) {
 			resetHiLoFlag = false
 			//@@@@@@@@@@@@@@@@@@@@@@@@@@@
 			// Lock activeSensors until done
-			activeSensorsMutex.Lock()
+			// activeSensorsMutex.Lock()
 			activeSensors[key] = s
 			// Unlock activeSensors
-			activeSensorsMutex.Unlock()
+			// activeSensorsMutex.Unlock()
 			editSensorWindow.Close()
 		}),
 		widget.NewButton("Cancel", func() {
@@ -360,6 +360,6 @@ var dataLoggingOffHandler = func() {
 	SetStatus("Data logging turned off")
 }
 
-var newSensorDisplayListHandler = func() {
-	chooseSensors("Choose one or more sensors", activeSensors, true) // Results in global slice resultKeys
-}
+// var newSensorDisplayListHandler = func() {
+// 	chooseSensors("Choose one or more sensors", activeSensors, List) // Results in global slice resultKeys
+// }

@@ -46,8 +46,10 @@ var (
 	dashboardWindow          fyne.Window
 	dashFlag                 bool = false // Dashboard window flag. If true, window has been initialized.
 	listActiveSensorsFlag    bool = false
-	listAvailableSensorsFlag bool = false // Sensor window2 flag. If true, window has been initilized.
+	listAvailableSensorsFlag bool = false
+	editActiveSensorsFlag    bool = false
 	addActiveSensorsFlag     bool = false
+	removeActiveSensorsFlag  bool = false
 	ddflag                   bool = false // Data display flag. If true, window has been initialized.
 	tflag                    bool = false // Topic display flag. If true, window has been initialized
 	hideflag                 bool = false // Used by hideWidgetHandler DO NOT DELETE!
@@ -78,22 +80,27 @@ func main() {
 	//  Prepare Menus
 	//**********************************
 	listActiveSensorsItem := fyne.NewMenuItem("List Active Sensors", func() {
-		chooseSensors("Active Sensors", activeSensors, false) // Results in global slice resultKeys
+		chooseSensors("Active Sensors", activeSensors, ListActive) // Results in global slice resultKeys
 	})
-	listAvailableSensorsItem := fyne.NewMenuItem("List Available Sensors", listAvailableSensorsHandler)
-	addActiveSensorItem := fyne.NewMenuItem("Add Active Sensors", addSensorsHandler)
+	listAvailableSensorsItem := fyne.NewMenuItem("List Available Sensors", func() {
+		chooseSensors("Available Sensors", availableSensors, ListAvail) // Results in global slice resultKeys
+	})
+	addActiveSensorItem := fyne.NewMenuItem("Add Active Sensors", func() {
+		chooseSensors("Select Sensors to Add", availableSensors, Add) // Results in global slice resultKeys
+	})
 	removeActiveSensorItem := fyne.NewMenuItem("Remove Active Sensors", removeSensorsHandler)
 	editActiveSensorItem := fyne.NewMenuItem("Edit Active Sensors", func() {
-		chooseSensors("Select Sensors to Edit", activeSensors, true) // Results in global slice resultKeys
+		chooseSensors("Select Sensors to Edit", activeSensors, Edit) // Results in global slice resultKeys
 	})
-	newActiveSensorItem := fyne.NewMenuItem("New Sensor List", newSensorDisplayListHandler)
+	// newActiveSensorItem := fyne.NewMenuItem("New Sensor List", newSensorDisplayListHandler)
 	sensorMenu := fyne.NewMenu("Sensors",
 		listActiveSensorsItem,
 		listAvailableSensorsItem,
 		addActiveSensorItem,
 		editActiveSensorItem,
 		removeActiveSensorItem,
-		newActiveSensorItem)
+		// newActiveSensorItem,
+	)
 
 	listTopicsItem := fyne.NewMenuItem("List", listTopicsHandler)
 	addTopicItem := fyne.NewMenuItem("New", addTopicHandler)
@@ -127,7 +134,7 @@ func main() {
 	SensorScroller.SetMinSize(fyne.NewSize(550, 500))
 	SensorScroller2.SetMinSize(fyne.NewSize(550, 500))
 	TopicScroller.SetMinSize(fyne.NewSize(300, 200))
-	sensorSelectScroller.SetMinSize(fyne.NewSize(600, 50))
+	// sensorSelectScroller.SetMinSize(fyne.NewSize(600, 50))
 
 	statusContainer = container.NewVBox(
 		ConsoleScroller,

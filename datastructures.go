@@ -179,13 +179,14 @@ type weatherWidgetRenderer struct {
 }
 
 var (
-	availableSensors   = make(map[string]*Sensor)        // Visible sensors table, no dups allowed
-	activeSensorsMutex sync.Mutex                        // Use to lock reads and writes to the map
-	activeSensors      = make(map[string]*Sensor)        // Active sensors table, indirect
-	messages           = make(map[int]Message)           // Topics to be subscribed
-	weatherWidgets     = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
-	dataFiles          = make(map[string]DataFile)       // Home:DataFile
-	brokers            = []Broker{
+	activeSensors         = make(map[string]*Sensor)        // Active sensors table, indirect
+	availableSensors      = make(map[string]*Sensor)        // Visible sensors table, no dups allowed
+	activeSensorsMutex    sync.Mutex                        // Use to lock reads and writes to the map
+	availableSensorsMutex sync.Mutex                        // Use to lock reads and writes to the map
+	messages              = make(map[int]Message)           // Topics to be subscribed
+	weatherWidgets        = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
+	dataFiles             = make(map[string]DataFile)       // Home:DataFile
+	brokers               = []Broker{
 		// {"path", 1883, "uid", "pwd"},
 	}
 )

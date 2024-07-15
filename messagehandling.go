@@ -28,7 +28,7 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 
 	err := json.Unmarshal(msg.Payload(), &incoming)
 	if err != nil {
-		fmt.Println("messageHandler: Unable to unmarshal JSON due to %s", err)
+		fmt.Println("messageHandler: Unable to unmarshal JSON due to ", err)
 		SetStatus(fmt.Sprintf("messageHandler: Unable to unmarshal JSON due to %s", err))
 	}
 	outgoing.CopyWDRtoWD(incoming)
@@ -40,13 +40,13 @@ var messageHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Messa
 		if _, ok := availableSensors[skey]; !ok {
 			// Sensor not in available sensors map. Add it.
 			sens := outgoing.GetSensorFromData() // Create Sensor record
-			sens.init(skey)                      // Initialize sensor record
+			sens.Station = outgoing.Station
 			//@@@@@@@@@@@@@@@@@@@@@@@@@@@
 			// Lock activeSensors until done
-			activeSensorsMutex.Lock()
+			availableSensorsMutex.Lock()
 			availableSensors[skey] = &sens // Add it to the visible sensors
-			activeSensorsMutex.Unlock()
-			SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s", skey))
+			availableSensorsMutex.Unlock()
+			SetStatus(fmt.Sprintf("Added sensor to visible sensors: %s, model: %s, station: %s", skey, sens.Model, sens.Station))
 		}
 	} else {
 		// Sensor is active, write record to output file

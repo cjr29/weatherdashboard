@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"image/color"
 	"strconv"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -35,10 +36,20 @@ const (
 	sensorDisplayStrokeWidth   float32 = 1
 )
 
+type Action int
+
+const (
+	ListActive Action = iota + 1 // List active sensors with no check box
+	ListAvail                    // List available sensors with no check box
+	Edit                         // Edit selected sensors
+	Add                          // Add selected sensors
+	Remove                       // Remove selected sensors
+)
+
 var (
-	sensorSelectDisp                   = container.NewVBox()
-	sensorSelectScroller               = container.NewVScroll(sensorSelectDisp)
-	selectedItems                      map[string]bool
+	// sensorSelectDisp     = container.NewVBox()
+	// sensorSelectScroller = container.NewVScroll(sensorSelectDisp)
+	// selectedItems                      map[string]bool
 	resultKeys                         []string // storage for sensor keys selected by user
 	sensorDisplayWidgetBackgroundColor          = color.RGBA{R: 214, G: 240, B: 246, A: 255}
 	sensorDisplayWidgetForegroundColor          = color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xFF} // Black
@@ -57,7 +68,9 @@ type sensorDisplayWidget struct {
 	dateAdded         string
 	latestUpdate      string
 	hasHumidity       bool
+	check             bool
 	renderer          *sensorDisplayWidgetRenderer
+	sync.Mutex
 }
 
 type sensorDisplayWidgetRenderer struct {
@@ -78,38 +91,113 @@ type sensorDisplayWidgetRenderer struct {
 // chooseSensors
 //
 //	if showChecks, display check boxes
-//	if singleCheck, allow only one box to be checked
-func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool) {
-	if listActiveSensorsFlag {
+//	Use Action type to determine which activity to initiate after selections are made
+func chooseSensors(title string, sensors map[string]*Sensor, action Action) {
+	var sensorSelectDisp = container.NewVBox()
+	var sensorSelectScroller = container.NewVScroll(sensorSelectDisp)
+	sensorSelectScroller.SetMinSize(fyne.NewSize(600, 50))
+
+	if listActiveSensorsFlag && (action == ListActive) {
 		return
 	}
-	listActiveSensorsFlag = true
-	var sensorSelectWindow fyne.Window
-	/* 	// Check to be sure window isn't already displayed
-	   	if (sensorSelectWindow != nil) && sensorSelectWindow.Content().Visible() {
-	   		return
-	   	} */
-	showCheckBoxesFlag = showChecks // Set the global flag for widgets to see
-	// Make a slice with capacity of all sensors passed in the argument
-	resultKeys = make([]string, 0, len(sensors))
+	if listAvailableSensorsFlag && (action == ListAvail) {
+		return
+	}
+	if editActiveSensorsFlag && (action == Edit) {
+		return
+	}
+	if addActiveSensorsFlag && (action == Add) {
+		return
+	}
+	if removeActiveSensorsFlag && (action == Add) {
+		return
+	}
+	// Depending on action, turn check boxes on or off by setting the global flag
+	switch action {
+	case ListActive:
+		listActiveSensorsFlag = true
+		showCheckBoxesFlag = false // Set the global flag for widgets to see
+	case ListAvail:
+		listAvailableSensorsFlag = true
+		showCheckBoxesFlag = false // Set the global flag for widgets to see
+	case Edit:
+		editActiveSensorsFlag = true
+		showCheckBoxesFlag = true
+	case Add:
+		addActiveSensorsFlag = true
+		showCheckBoxesFlag = true
+	case Remove:
+		removeActiveSensorsFlag = true
+		showCheckBoxesFlag = true
+	default:
+		showCheckBoxesFlag = false
+	}
 
 	// Prepare the containers and widgets to display the selection list
-	sensorSelectWindow = a.NewWindow(title)
+	sensorSelectWindow := a.NewWindow(title)
 	sensorSelectWindow.SetOnClosed(func() {
-		listActiveSensorsFlag = false
-		processSelection()
+		switch action {
+		case ListActive:
+			listActiveSensorsFlag = false
+			return
+		case ListAvail:
+			listAvailableSensorsFlag = false
+			return
+		case Edit:
+			editSensors()
+			editActiveSensorsFlag = false
+		case Add:
+			addSensors()
+			addActiveSensorsFlag = false
+		case Remove:
+			removeSensors()
+			removeActiveSensorsFlag = false
+		default:
+			editSensors()
+		}
+
 	})
+
 	sensorSelectWindow.Resize(fyne.NewSize(sensorDisplayWidgetSizeX+20, sensorDisplayWidgetSizeY*10))
-	fillSensorSelectionContainer(sensors)
+	// choices := fillSensorSelectionContainer(sensors, sensorSelectDisp)
+	// Make a slice with capacity of all sensors passed in the argument
+	resultKeys = make([]string, 0, len(sensors))
+	var choices []*sensorDisplayWidget
+	for key, sens := range sensors {
+		temp := sensorDisplayWidget{}
+		temp.Lock()
+		temp.init(sens)
+		// activeSensorsMutex.Lock()
+		// a := *activeSensors[key]
+		a := sensors[key]
+		// activeSensorsMutex.Unlock()
+		temp.station = a.Station
+		temp.name = a.Name
+		temp.model = a.Model
+		temp.id = a.Id
+		temp.channel = a.Channel
+		temp.dateAdded = a.DateAdded
+		temp.latestUpdate = a.LastEdit
+		temp.hasHumidity = a.HasHumidity
+		sensorSelectDisp.Add(&temp)
+		choices = append(choices, &temp)
+		temp.Unlock()
+	}
+	sensorSelectScroller.ScrollToBottom()
+	sensorSelectDisp.Refresh()
+
 	var buttonContainer *fyne.Container
 	// Show Submit only if a choice is required
 	if showCheckBoxesFlag {
 		buttonContainer = container.NewHBox(
 			widget.NewButton("Submit", func() {
-				for key, value := range selectedItems {
-					if value {
-						resultKeys = append(resultKeys, key)
+				// for key, value := range selectedItems {
+				for _, value := range choices {
+					value.Lock()
+					if value.check {
+						resultKeys = append(resultKeys, value.sensorKey)
 					}
+					value.Unlock()
 				}
 				listActiveSensorsFlag = false
 				sensorSelectWindow.Close()
@@ -122,7 +210,6 @@ func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool) {
 	} else {
 		buttonContainer = container.NewHBox(
 			widget.NewButton("Cancel", func() {
-				listActiveSensorsFlag = false
 				sensorSelectWindow.Close()
 			}),
 		)
@@ -138,7 +225,8 @@ func chooseSensors(title string, sensors map[string]*Sensor, showChecks bool) {
 	sensorSelectWindow.Show()
 }
 
-func processSelection() {
+// processSelection - Loops over sensors and opens edit window for each selected sensor
+/* func processSelection() {
 	// Loop over selected sensors to edit
 	if len(resultKeys) == 0 {
 		return
@@ -147,7 +235,122 @@ func processSelection() {
 
 		// Load widgets using selected sensor
 		resetHiLoFlag := false
+		activeSensorsMutex.Lock()
 		s := activeSensors[key]
+		activeSensorsMutex.Unlock()
+		// Save values in case edit is canceled by user
+		sav_Station := s.Station
+		sav_Name := s.Name
+		sav_Location := s.Location
+		sav_Hide := s.Hide
+		sav_HasHumidity := s.HasHumidity
+		// Load form fields
+		s_Station_widget := widget.NewEntry()
+		s_Station_widget.SetText(s.Station)
+		s_Station_widget.SetPlaceHolder("Home")
+		s_Name_widget := widget.NewEntry()
+		s_Name_widget.SetText(s.Name)
+		s_Name_widget.SetPlaceHolder("Name")
+		s_Location_widget := widget.NewEntry()
+		s_Location_widget.SetText(s.Location)
+		s_Location_widget.SetPlaceHolder("Location")
+		s_Hide_widget := widget.NewCheck("Check to hide sensor on weather dashboard", hideWidgetHandler)
+		s_Hide_widget.SetChecked(s.Hide)
+		s_HasHumidity_widget := widget.NewCheck("Check if sensor also provides humidity", showHumidityHandler)
+		s_HasHumidity_widget.SetChecked(s.HasHumidity)
+		s_ResetHiLo_widget := widget.NewCheck("Reset Hi/Lo", func(value bool) {
+			if value {
+				s.HighTemp = s.Temp
+				s.LowTemp = s.Temp
+				s.HighHumidity = s.Humidity
+				s.LowHumidity = s.Humidity
+			}
+		})
+		s_ResetHiLo_widget.SetChecked(false)
+		s_Model_widget := widget.NewLabel("")
+		s_Model_widget.SetText(s.Model)
+		s_Id_widget := widget.NewLabel("")
+		s_Id_widget.SetText(strconv.Itoa(s.Id))
+		s_Channel_widget := widget.NewLabel("")
+		s_Channel_widget.SetText(s.Channel)
+		t := time.Now().Local()
+		st := t.Format(YYYYMMDD + " " + HHMMSS24h)
+		s_LastEdit_widget := widget.NewLabel("")
+		s_LastEdit_widget.SetText(st)
+		// Pop up a window to let user edit record, then save the record
+		editSensorWindow := a.NewWindow("Edit active sensor properties.")
+		editSensorWindow.SetOnClosed(func() {
+
+		})
+		editSensorContainer := container.NewVBox(
+			widget.NewLabel("Update Home, Name, Location, and Visibility, then press Submit to save."),
+			s_Station_widget,
+			s_Name_widget,
+			s_Location_widget,
+			s_Hide_widget,
+			s_HasHumidity_widget,
+			s_ResetHiLo_widget,
+			s_Model_widget,
+			s_Id_widget,
+			s_Channel_widget,
+			s_LastEdit_widget,
+			widget.NewButton("Submit", func() {
+				// Save updated record back to activeSensors
+				// First be sure that there is a widget record. User may have cleared the Hide flag, expecting a new sensor to display
+				SetStatus(fmt.Sprintf("Saving updated sensor record for  %s", s_Name_widget.Text))
+				s.Station = s_Station_widget.Text
+				s.Name = s_Name_widget.Text
+				s.Location = s_Location_widget.Text
+				s.Hide = s_Hide_widget.Checked
+				s.HasHumidity = s_HasHumidity_widget.Checked
+				s.LastEdit = st
+				if resetHiLoFlag {
+					s.HighTemp = s.Temp
+					s.LowTemp = s.Temp
+					s.HighHumidity = s.Humidity
+					s.LowHumidity = s.Humidity
+				}
+				//@@@@@@@@@@@@@@@@@@@@@@@@@@@
+				// Lock activeSensors until done
+				activeSensorsMutex.Lock()
+				activeSensors[key] = s
+				activeSensorsMutex.Unlock()
+				// Unlock activeSensors
+				// If dashboard is visible, reload it since we changed a sensor in a widget
+				if dashFlag {
+					reloadDashboard()
+				}
+				listActiveSensorsFlag = false
+				editSensorWindow.Close()
+			}),
+			widget.NewButton("Cancel", func() {
+				// Restore orginal values
+				s_Station_widget.SetText(sav_Station)
+				s_Name_widget.SetText(sav_Name)
+				s_Location_widget.SetText(sav_Location)
+				s_Hide_widget.SetChecked(sav_Hide)
+				s_HasHumidity_widget.SetChecked(sav_HasHumidity)
+				editSensorWindow.Close()
+			}),
+		)
+		editSensorWindow.SetContent(editSensorContainer)
+
+		editSensorWindow.Show()
+	}
+} */
+
+func editSensors() {
+	// Loop over selected sensors to edit
+	if len(resultKeys) == 0 {
+		return
+	}
+	for _, key := range resultKeys {
+
+		// Load widgets using selected sensor
+		resetHiLoFlag := false
+		activeSensorsMutex.Lock()
+		s := activeSensors[key]
+		activeSensorsMutex.Unlock()
 		// Save values in case edit is canceled by user
 		sav_Station := s.Station
 		sav_Name := s.Name
@@ -217,12 +420,7 @@ func processSelection() {
 					s.HighHumidity = s.Humidity
 					s.LowHumidity = s.Humidity
 				}
-				//@@@@@@@@@@@@@@@@@@@@@@@@@@@
-				// Lock activeSensors until done
-				activeSensorsMutex.Lock()
 				activeSensors[key] = s
-				activeSensorsMutex.Unlock()
-				// Unlock activeSensors
 				// If dashboard is visible, reload it since we changed a sensor in a widget
 				if dashFlag {
 					reloadDashboard()
@@ -246,15 +444,55 @@ func processSelection() {
 	}
 }
 
-// fillSensorSelectionContainer - Call this function to put weather data string in the weather display scrolling window
-func fillSensorSelectionContainer(sensors map[string]*Sensor) {
+func addSensors() {
+	// if addActiveSensorsFlag {
+	// 	return
+	// }
+	// addActiveSensorsFlag = true
+	// addSensorWindow := a.NewWindow("Select Sensors to add to active list")
+	// addSensorWindow.SetOnClosed(func() {
+	// 	addActiveSensorsFlag = false
+	// })
+
+	// vlist := buildSensorList(availableSensors) // Get list of visible sensors
+	// selections := make([]string, 0)
+	// pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
+	// 	selections = append(selections, choices...)
+	// })
+
+	for _, key := range resultKeys {
+		// Load widgets using selected sensor
+		if checkSensor(key, availableSensors) && !availableSensors[key].Hide {
+			availableSensorsMutex.Lock()
+			s := *availableSensors[key]
+			availableSensorsMutex.Unlock()
+			activeSensorsMutex.Lock()
+			activeSensors[key] = &s
+			activeSensorsMutex.Unlock()
+			reloadDashboard()
+			SetStatus(fmt.Sprintf("Added sensor to active sensors: %s", key))
+		}
+	}
+
+}
+
+func removeSensors() {
+	fmt.Println("removeSensors")
+}
+
+/* // fillSensorSelectionContainer - Call this function to put weather data string in the weather display scrolling window
+func fillSensorSelectionContainer(sensors map[string]*Sensor, sensorSelectDisp *fyne.Container) []*sensorDisplayWidget {
 	// Clear selected items map
-	selectedItems = make(map[string]bool)
-	sensorSelectDisp.Objects = nil
+	// selectedItems = make(map[string]bool)
+	sensorSelectDisp.RemoveAll()
+	var choices []*sensorDisplayWidget
 	for key, sens := range sensors {
 		temp := sensorDisplayWidget{}
 		temp.init(sens)
-		a := *activeSensors[key]
+		// activeSensorsMutex.Lock()
+		// a := *activeSensors[key]
+		a := sensors[key]
+		// activeSensorsMutex.Unlock()
 		temp.station = a.Station
 		temp.name = a.Name
 		temp.model = a.Model
@@ -264,12 +502,15 @@ func fillSensorSelectionContainer(sensors map[string]*Sensor) {
 		temp.latestUpdate = a.LastEdit
 		temp.hasHumidity = a.HasHumidity
 		sensorSelectDisp.Add(&temp)
+		choices = append(choices, &temp)
 	}
 
 	sensorSelectScroller.ScrollToBottom()
 
 	sensorSelectDisp.Refresh()
-}
+
+	return choices
+} */
 
 /* // Ranges through the sensorSelectDisp container, checking each item for a checked box
 func getSelectedItems() {
@@ -309,7 +550,8 @@ func newSensorDisplayWidgetRenderer(sdw *sensorDisplayWidget) fyne.WidgetRendere
 	* Add a Check Box widget
 	******************************/
 	check := widget.NewCheck("", func(b bool) {
-		selectedItems[r.widget.sensorKey] = b
+		r.widget.check = b
+		// selectedItems[r.widget.sensorKey] = b
 	})
 
 	st := canvas.NewText(sdw.station, sensorDisplayWidgetForegroundColor)
@@ -414,7 +656,10 @@ func (sdw *sensorDisplayWidget) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (sdw *sensorDisplayWidget) Hide() {
+}
 
+func (sdw *sensorDisplayWidget) Checked() bool {
+	return sdw.check
 }
 
 func (sdw *sensorDisplayWidget) Refresh() {
@@ -435,6 +680,7 @@ func (sdw *sensorDisplayWidget) UpdateDate() {
 
 // Initialize fields of a sensorDisplayWidget using data from Sensor
 func (sdw *sensorDisplayWidget) init(s *Sensor) {
+	// activeSensorsMutex.Lock()
 	sdw.sensorKey = s.Key
 	sdw.name = s.Name
 	sdw.station = s.Station
@@ -443,4 +689,6 @@ func (sdw *sensorDisplayWidget) init(s *Sensor) {
 	sdw.dateAdded = s.DateAdded
 	sdw.latestUpdate = s.LastEdit
 	sdw.hasHumidity = s.HasHumidity
+	sdw.check = false
+	// activeSensorsMutex.Unlock()
 }
