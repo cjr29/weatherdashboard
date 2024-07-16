@@ -16,8 +16,6 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-var opts = mqtt.NewClientOptions()
-
 /**********************************************************************************
  *	MQTT Message Handling
  **********************************************************************************/
@@ -104,6 +102,9 @@ func notifyWidget(nd newData) {
 		activeSensors[key].Humidity = humidity
 	}
 	weatherWidgets[key].latestUpdate = date
+
+	activeSensorsMutex.Lock()
+
 	activeSensors[key].DataDate = date
 
 	//Calculate & update highs and lows
@@ -123,19 +124,21 @@ func notifyWidget(nd newData) {
 		weatherWidgets[key].lowHumidity = humidity
 		activeSensors[key].LowHumidity = humidity
 	}
+
+	activeSensorsMutex.Unlock()
+
 	// Send channel signal to background processor
 	weatherWidgets[key].channel <- key
 }
 
 func sub(client mqtt.Client) {
-	for _, m := range messages {
-		//SetStatus(fmt.Sprintf("Subscribing to topic ==> %s", m.Topic))
+	for _, m := range subscriptions {
 		client.Subscribe(m.Topic, 0, messageHandler)
 		SetStatus(fmt.Sprintf("Subscribed to topic %s", m.Topic))
 	}
 }
 
-func unsubscribe(client mqtt.Client, msg Message) {
+func unsubscribe(client mqtt.Client, msg Subscription) {
 	client.Unsubscribe(msg.Topic)
 	SetStatus(fmt.Sprintf("Unsubscribed from topic %s", msg.Topic))
 }
@@ -174,7 +177,7 @@ func checkSensor(key string, s map[string]*Sensor) bool {
 }
 
 // checkMessage - Check if message is in message table
-func checkMessage(key int, m map[int]Message) bool {
+func checkMessage(key int, m map[int]Subscription) bool {
 	if _, ok := m[key]; ok {
 		return true
 	}
@@ -190,20 +193,6 @@ func checkMessage(key int, m map[int]Message) bool {
 // 	}
 // 	return list
 // }
-
-// Create message (topic) list
-func buildMessageList(m map[int]Message) []ChoicesIntKey {
-	var list []ChoicesIntKey
-	i := 0
-	for key, message := range m {
-		var c ChoicesIntKey
-		c.Display = strconv.Itoa(i) + ": " + message.FormatMessage(1)
-		c.Key = key
-		list = append(list, c)
-		i++
-	}
-	return list
-}
 
 // writeWeatherData - Output weather record to appropriate file based on the station (home)
 func writeWeatherData(wd WeatherData) {

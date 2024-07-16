@@ -29,10 +29,6 @@ var (
 	ConsoleScroller = container.NewVScroll(Console)
 	WeatherDataDisp = container.NewVBox()
 	WeatherScroller = container.NewVScroll(WeatherDataDisp)
-	SensorDisplay   = container.NewVBox()
-	SensorScroller  = container.NewVScroll(SensorDisplay)
-	SensorDisplay2  = container.NewVBox()
-	SensorScroller2 = container.NewVScroll(SensorDisplay2)
 	TopicDisplay    = container.NewVBox()
 	TopicScroller   = container.NewVScroll(TopicDisplay)
 
@@ -40,9 +36,8 @@ var (
 	statusContainer    *fyne.Container
 	dashboardContainer *fyne.Container
 	dataWindow         fyne.Window
-	//	sensorWindow2      fyne.Window
-	topicWindow     fyne.Window
-	dashboardWindow fyne.Window
+	topicWindow        fyne.Window
+	dashboardWindow    fyne.Window
 
 	// Allow only one instance of any of these windows to be opened at a time
 	dashFlag                 bool = false // Dashboard window flag. If true, window has been initialized.
@@ -53,6 +48,7 @@ var (
 	removeActiveSensorsFlag  bool = false
 	ddflag                   bool = false // Data display flag. If true, window has been initialized.
 	tflag                    bool = false // Topic display flag. If true, window has been initialized
+	ewwFlag                  bool = false // Edit weather widget flag. If true, window has been initialized
 	// end of window flags
 
 	hideflag    bool = false // Used by hideWidgetHandler DO NOT DELETE!
@@ -120,12 +116,12 @@ func main() {
 	removeTopicItem := fyne.NewMenuItem("Remove", removeTopicHandler)
 	topicMenu := fyne.NewMenu("Topics", listTopicsItem, addTopicItem, removeTopicItem)
 
-	dataDisplayItem := fyne.NewMenuItem("Weather Data Scroller", scrollDataHandler)
+	dataDisplayItem := fyne.NewMenuItem("Station Data Live Feed", scrollDataHandler)
 	dashboardItem := fyne.NewMenuItem("Dashboard Widgets", dashboardHandler)
 	dataMenuSeparator := fyne.NewMenuItemSeparator()
 	toggleDataLoggingOnItem := fyne.NewMenuItem("Data Logging On", dataLoggingOnHandler)
 	toggleDataLoggingOffItem := fyne.NewMenuItem("DataLogging Off", dataLoggingOffHandler)
-	weatherMenu := fyne.NewMenu("Display Data",
+	dataMenu := fyne.NewMenu("Data",
 		dataDisplayItem,
 		dashboardItem,
 		dataMenuSeparator,
@@ -133,7 +129,7 @@ func main() {
 		toggleDataLoggingOffItem,
 	)
 
-	menu := fyne.NewMainMenu(weatherMenu, sensorMenu, topicMenu)
+	menu := fyne.NewMainMenu(dataMenu, sensorMenu, topicMenu)
 
 	w.SetMainMenu(menu)
 	menu.Refresh()
@@ -144,10 +140,7 @@ func main() {
 
 	ConsoleScroller.SetMinSize(fyne.NewSize(640, 400))
 	WeatherScroller.SetMinSize(fyne.NewSize(700, 500))
-	SensorScroller.SetMinSize(fyne.NewSize(550, 500))
-	SensorScroller2.SetMinSize(fyne.NewSize(550, 500))
 	TopicScroller.SetMinSize(fyne.NewSize(300, 200))
-	// sensorSelectScroller.SetMinSize(fyne.NewSize(600, 50))
 
 	statusContainer = container.NewVBox(
 		ConsoleScroller,
@@ -172,26 +165,28 @@ func main() {
 	//**********************************
 	// Set configuration for MQTT, read from config.ini file in local directory
 	//**********************************
-	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", brokers[0].Path, brokers[0].Port))
-	opts.SetClientID(clientID)
-	opts.SetUsername(brokers[0].Uid)
-	opts.SetPassword(brokers[0].Pwd)
-	opts.OnConnect = connectHandler
-	opts.OnConnectionLost = connectLostHandler
+	for _, b := range brokers {
+		opts := mqtt.NewClientOptions()
+		opts.AddBroker(fmt.Sprintf("tcp://%s:%d", b.Path, b.Port))
+		opts.SetClientID(clientID)
+		opts.SetUsername(b.Uid)
+		opts.SetPassword(b.Pwd)
+		opts.OnConnect = connectHandler
+		opts.OnConnectionLost = connectLostHandler
 
-	//**********************************
-	// Initialize MQTT client
-	//**********************************
-	Client = mqtt.NewClient(opts)
-	if token := Client.Connect(); token.Wait() && token.Error() != nil {
-		SetStatus("Error connecting with broker. Closing program.")
-		log.Println("Error connecting with broker. Closing program.")
-		panic(token.Error())
+		//**********************************
+		// Initialize MQTT client
+		//**********************************
+		Client = mqtt.NewClient(opts)
+		if token := Client.Connect(); token.Wait() && token.Error() != nil {
+			SetStatus("Error connecting with broker. Closing program.")
+			log.Println("Error connecting with broker. Closing program.")
+			panic(token.Error())
+		}
+		t := time.Now().Local()
+		st := t.Format(YYYYMMDD + " " + HHMMSS24h)
+		SetStatus(fmt.Sprintf("%s : Client connected to broker %s", st, brokers[0].Path+":"+strconv.Itoa(brokers[0].Port)))
 	}
-	t := time.Now().Local()
-	st := t.Format(YYYYMMDD + " " + HHMMSS24h)
-	SetStatus(fmt.Sprintf("%s : Client connected to broker %s", st, brokers[0].Path+":"+strconv.Itoa(brokers[0].Port)))
-
 	//**********************************
 	// Turn over control to the GUI
 	//**********************************

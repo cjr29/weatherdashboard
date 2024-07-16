@@ -7,7 +7,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 
 	"fyne.io/fyne/v2"
@@ -132,100 +131,6 @@ func DisplayData(text string) {
 		WeatherScroller.ScrollToBottom()
 	}
 	WeatherDataDisp.Refresh()
-}
-
-// DisplayTopics - Call this function to display a list of topics in a scrolling window
-func DisplayTopics(t map[int]Message) {
-	TopicDisplay.RemoveAll()
-	header := fmt.Sprintf("Number of Subscribed Topics = %d", len(t))
-	TopicDisplay.Add(&canvas.Text{
-		Text:      header,
-		Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
-		TextSize:  12,
-		TextStyle: fyne.TextStyle{Monospace: true},
-	})
-	for m := range t {
-		msg := t[m]
-		text := msg.Topic
-		TopicDisplay.Add(&canvas.Text{
-			Text:      text,
-			Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
-			TextSize:  12,
-			TextStyle: fyne.TextStyle{Monospace: true},
-		})
-	}
-
-	if len(TopicDisplay.Objects) > 100 {
-		TopicDisplay.Remove(TopicDisplay.Objects[0])
-	}
-	delta := (TopicDisplay.Size().Height - TopicScroller.Size().Height) - TopicScroller.Offset.Y
-
-	if delta < 100 {
-		TopicScroller.ScrollToBottom()
-	}
-	TopicDisplay.Refresh()
-}
-
-// DisplaySensors - First, erase previously displayed list
-func DisplaySensors(m map[string]*Sensor) {
-	SensorDisplay.RemoveAll()
-	header := fmt.Sprintf("Number of Sensors = %d", len(m))
-	SensorDisplay.Add(&canvas.Text{
-		Text:      header,
-		Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
-		TextSize:  12,
-		TextStyle: fyne.TextStyle{Monospace: true},
-	})
-	for s := range m {
-		sens := m[s]
-		text := sens.FormatSensor(1)
-		SensorDisplay.Add(&canvas.Text{
-			Text:      text,
-			Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
-			TextSize:  12,
-			TextStyle: fyne.TextStyle{Monospace: true},
-		})
-	}
-	if len(SensorDisplay.Objects) > 100 {
-		SensorDisplay.Remove(SensorDisplay.Objects[0])
-	}
-	delta := (SensorDisplay.Size().Height - SensorScroller.Size().Height) - SensorScroller.Offset.Y
-
-	if delta < 100 {
-		SensorScroller.ScrollToBottom()
-	}
-	SensorDisplay.Refresh()
-}
-
-// DisplayAvailableSensors - First, erase previously displayed list
-func DisplaySensors2(m map[string]*Sensor) {
-	SensorDisplay2.RemoveAll()
-	header := fmt.Sprintf("Number of Sensors = %d", len(m))
-	SensorDisplay2.Add(&canvas.Text{
-		Text:      header,
-		Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
-		TextSize:  12,
-		TextStyle: fyne.TextStyle{Monospace: true},
-	})
-	for s := range m {
-		sens := m[s]
-		text := sens.FormatSensor(1)
-		SensorDisplay2.Add(&canvas.Text{
-			Text:      text,
-			Color:     th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant()),
-			TextSize:  12,
-			TextStyle: fyne.TextStyle{Monospace: true},
-		})
-	}
-	if len(SensorDisplay2.Objects) > 100 {
-		SensorDisplay2.Remove(SensorDisplay2.Objects[0])
-	}
-	delta := (SensorDisplay2.Size().Height - SensorScroller2.Size().Height) - SensorScroller2.Offset.Y
-
-	if delta < 100 {
-		SensorScroller2.ScrollToBottom()
-	}
-	SensorDisplay2.Refresh()
 }
 
 // UpdateAll - updates selected containers

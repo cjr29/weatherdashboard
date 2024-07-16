@@ -100,13 +100,6 @@ type Sensor struct {
 	HasHumidity bool `json:"HasHumidity"` // If sensor does not provide humidity, set to false
 }
 
-type Broker struct {
-	Path string `json:"Path"`
-	Port int    `json:"Port"`
-	Uid  string `json:"Uid"`
-	Pwd  string `json:"Pwd"`
-}
-
 type newData struct {
 	key      string
 	temp     float64
@@ -114,20 +107,27 @@ type newData struct {
 	date     string
 }
 
-type Message struct {
+type Broker struct {
+	Path string `json:"Path"`
+	Port int    `json:"Port"`
+	Uid  string `json:"Uid"`
+	Pwd  string `json:"Pwd"`
+}
+
+type Subscription struct {
 	Topic   string `json:"Topic"`
 	Station string `json:"Station"`
+}
+
+type Configuration struct {
+	Brokers       map[int]Broker
+	Subscriptions map[int]Subscription
+	ActiveSensors map[string]Sensor
 }
 
 type DataFile struct {
 	file *os.File
 	path string
-}
-
-type Configuration struct {
-	Brokers       []Broker
-	Messages      map[int]Message
-	ActiveSensors map[string]Sensor
 }
 
 type ChoicesIntKey struct {
@@ -173,12 +173,13 @@ var (
 	availableSensors      = make(map[string]*Sensor)        // Visible sensors table, no dups allowed
 	activeSensorsMutex    sync.Mutex                        // Use to lock reads and writes to the map
 	availableSensorsMutex sync.Mutex                        // Use to lock reads and writes to the map
-	messages              = make(map[int]Message)           // Topics to be subscribed
+	subscriptions         = make(map[int]Subscription)      // Topics to be subscribed
 	weatherWidgets        = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
 	dataFiles             = make(map[string]DataFile)       // Home:DataFile
-	brokers               = []Broker{
-		// {"path", 1883, "uid", "pwd"},
-	}
+	brokers               = make(map[int]Broker)            // Brokers to connect with
+	// brokers               = []Broker{
+	// 	// {"path", 1883, "uid", "pwd"},
+	// }
 )
 
 /**********************************************************************************
@@ -284,13 +285,13 @@ func (s *Sensor) FormatSensor(style int) string {
 	}
 }
 
-// Format Message string for writing
+// Format Subscription string for writing
 // Style = 0, newlines; Style = 1, comma-separated one line
-func (m *Message) FormatMessage(style int) string {
+func (m *Subscription) FormatSubscription(style int) string {
 	switch style {
 	case 0:
 		{
-			str := "Message:\n"
+			str := "Subscription:\n"
 			str = str + "   Station: " + m.Station + "\n"
 			str = str + "   Topic: " + m.Topic + "\n"
 			return str

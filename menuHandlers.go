@@ -8,10 +8,8 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"fyne.io/fyne/v2/container"
@@ -31,6 +29,7 @@ var showHumidityHandler = func(value bool) {
 
 // editSpecificSensorHandler - Used by dashboard widgets to edit a tapped widget
 func editSpecificSensorHandler(key string) {
+	ewwFlag = true // Prevent more than one edit window at a time
 	resetHiLoFlag := false
 	// Load widget using selected sensor
 	s := activeSensors[key]
@@ -76,6 +75,7 @@ func editSpecificSensorHandler(key string) {
 	editSensorWindow := a.NewWindow("Edit active sensor properties.")
 	editSensorWindow.SetOnClosed(func() {
 		// Reload and display the updated widgets in dashboard
+		ewwFlag = false
 		reloadDashboard()
 	})
 	editSensorContainer := container.NewVBox(
@@ -126,121 +126,11 @@ func editSpecificSensorHandler(key string) {
 	editSensorWindow.Show()
 }
 
-// REMOVE ACTIVE SENSOR
-/* var removeSensorsHandler = func() {
-	removeSensorWindow := a.NewWindow("Select Sensors to remove from active list")
-	vlist := buildSensorList(activeSensors) // Get list of active sensors
-	selections := make([]string, 0)
-	pickSensors := widget.NewCheckGroup(vlist, func(choices []string) {
-		selections = append(selections, choices...)
-	})
-	removeSensorScroller := container.NewVScroll(
-		pickSensors,
-	)
-	removeSensorContainer := container.NewVBox(
-		widget.NewLabel("Select all sensors to be removed from the active sensors list"),
-		widget.NewButton("Submit", func() {
-			// Process selected sensors and add to the active sensors map
-			for i := 0; i < len(selections); i++ {
-				// Get key for selected sensor - Key: field of value
-				key := strings.Split(selections[i], "Key: ")[1] // Found at end of the displayed string after "Key: ..."
-				// Delete sensor using selected key
-				if checkSensor(key, activeSensors) {
-					// Add sensors to activeSensors map - TBD
-					delete(activeSensors, key)
-					SetStatus(fmt.Sprintf("Removed sensor from active sensors: %s", key))
-					reloadDashboard()
-				}
-			}
-			removeSensorWindow.Close()
-		}),
-		removeSensorScroller,
-	)
-	removeSensorWindow.SetContent(removeSensorContainer)
-	removeSensorWindow.Show()
-} */
-
-// LIST TOPIC
-var listTopicsHandler = func() {
-	DisplayTopics(messages)
-	if !tflag {
-		topicWindow = a.NewWindow("Subscribed Topics")
-		// Get displayable list of subscribed topics
-		topicWindow.SetContent(TopicScroller)
-		topicWindow.SetOnClosed(func() {
-			tflag = false
-		})
-		tflag = true
-		topicWindow.Show()
-	} else {
-		topicWindow.Show()
-		tflag = true
-	}
-}
-
-// ADD TOPIC
-var addTopicHandler = func() {
-	addTopicWindow := a.NewWindow("New Topic")
-	inputT := widget.NewEntry()
-	inputS := widget.NewEntry()
-	inputT.SetPlaceHolder("Topic")
-	inputS.SetPlaceHolder("Station")
-	addTopicContainer := container.NewVBox(
-		widget.NewLabel("Enter the full topic and its station name to which you want to subscribe."),
-		inputT,
-		inputS,
-		widget.NewButton("Submit", func() {
-			SetStatus(fmt.Sprintf("Added Topic: %s, Station: %s", inputT.Text, inputS.Text))
-			// Add input text to messages[]
-			var m Message
-			m.Topic = inputT.Text
-			m.Station = inputS.Text
-			key := rand.Int()
-			messages[key] = m
-			Client.Subscribe(m.Topic, 0, messageHandler)
-			SetStatus(fmt.Sprintf("Subscribed to Topic: %s", m.Topic))
-			addTopicWindow.Close()
-		}),
-	)
-	addTopicWindow.SetContent(addTopicContainer)
-	addTopicWindow.Show()
-}
-
-// REMOVE TOPIC
-var removeTopicHandler = func() {
-	delTopicWindow := a.NewWindow("Delete Topic")
-	var choices []string
-	tlist := buildMessageList(messages)
-	for _, m := range tlist {
-		choices = append(choices, m.Display)
-	}
-	selections := make([]string, 0)
-	pickTopics := widget.NewCheckGroup(choices, func(c []string) {
-		selections = append(selections, c...)
-	})
-	delTopicContainer := container.NewVBox(
-		widget.NewLabel("Select the topic you want to remove from subscribing."),
-		pickTopics,
-		widget.NewButton("Submit", func() {
-			for i := 0; i < len(selections); i++ {
-				j, err := strconv.ParseInt(strings.Split(selections[i], ":")[0], 10, 32) // Index of choice at head of string "0: ", "1: ", ...
-				check(err)
-				k := int(j) // k is index into the tlist array of []ChoicesIntKey where .Key is the Message key
-				// Verify message is in map before rying to delete
-				if checkMessage(tlist[k].Key, messages) {
-					// Delete using key
-					key := tlist[k].Key
-					unsubscribe(Client, messages[key])
-					delete(messages, key)
-				}
-			}
-			delTopicWindow.Close()
-		}),
-	)
-	delTopicWindow.SetContent(delTopicContainer)
-	delTopicWindow.Show()
-}
-
+/******************************************************************
+ *
+ * exitHandler - callback used by main window when it is closed
+ *
+ ******************************************************************/
 var exitHandler = func() {
 	// Close data files
 	for _, d := range dataFiles {
@@ -257,7 +147,7 @@ var exitHandler = func() {
 
 var scrollDataHandler = func() {
 	if !ddflag {
-		dataWindow = a.NewWindow("Weather Data From Sensors")
+		dataWindow = a.NewWindow("Station Data Live Feed")
 		dataWindow.SetContent(WeatherScroller)
 		dataWindow.SetOnClosed(func() {
 			ddflag = false

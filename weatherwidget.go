@@ -248,6 +248,9 @@ func (ww *weatherWidget) Init(s *Sensor) {
 
 func (ww *weatherWidget) Tapped(*fyne.PointEvent) {
 	// Call handler to edit the widget elements
+	if ewwFlag {
+		return // There is only one edit window at a time
+	}
 	editSpecificSensorHandler(ww.sensorKey)
 }
 

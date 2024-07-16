@@ -31,36 +31,37 @@ func readConfig() {
 		// Can't open json file, ask user for broker info
 		SetStatus("Unable to find or open the config.json file. Asking user for broker info.")
 		var b Broker
-		var m Message
+		var m Subscription
 		fmt.Println("Enter full path to weather broker: ")
 		fmt.Scanln(&b.Path)
 		b.Port = 1883
-		opts.AddBroker(fmt.Sprintf("tcp://%s:%d", b.Path, b.Port))
+		// opts.AddBroker(fmt.Sprintf("tcp://%s:%d", b.Path, b.Port))
 		fmt.Println("Enter user Id: ")
 		fmt.Scanln(&b.Uid)
-		opts.SetUsername(b.Uid)
+		// opts.SetUsername(b.Uid)
 		fmt.Printf("Enter password to weather broker %s: \n", b.Path)
 		fmt.Scanln(&b.Pwd)
-		opts.SetPassword(b.Pwd)
-		opts.SetClientID(clientID)
+		// opts.SetPassword(b.Pwd)
+		// opts.SetClientID(clientID)
 		// Copy properties into the brokers array
-		brokers = append(brokers, b)
+		bkey := rand.Int()
+		brokers[bkey] = b
 		fmt.Println("Enter a topic to subscribe to:")
 		fmt.Scanln(&m.Topic)
 		fmt.Println("Enter station name:")
 		fmt.Scanln(&m.Station)
-		// Add to messages
-		key := rand.Int()
-		messages[key] = m
+		// Add to subscriptions
+		skey := rand.Int()
+		subscriptions[skey] = m
 	}
 
 	// Disable data logging
 	logdata_flg = false
 
 	//**********************************
-	// Open data output files, one for each message subscription
+	// Open data output files, one for each subscription
 	//**********************************
-	for _, m := range messages {
+	for _, m := range subscriptions {
 		fp := "./WeatherData-" + m.Station + ".txt"
 		dfile := new(DataFile)
 		dfile.path = fp
@@ -94,7 +95,7 @@ func jsonOutput() (e error) {
 
 	c := Configuration{
 		Brokers:       brokers,
-		Messages:      messages,
+		Subscriptions: subscriptions,
 		ActiveSensors: as,
 	}
 
@@ -110,7 +111,7 @@ func jsonInput() (e error) {
 
 	c := Configuration{
 		Brokers:       brokers,
-		Messages:      messages,
+		Subscriptions: subscriptions,
 		ActiveSensors: as,
 	}
 
@@ -126,13 +127,18 @@ func jsonInput() (e error) {
 		return err
 	}
 
-	brokers = nil // Erase current list
+	//brokers = nil // Erase current list
 	// Copy the configuration information into the data structures.
-	brokers = append(brokers, c.Brokers...)
+	//brokers = append(brokers, c.Brokers...)
 
-	// Load the input messages
-	for key, value := range c.Messages {
-		messages[key] = value
+	// Load the input brokers
+	for key, value := range c.Brokers {
+		brokers[key] = value
+	}
+
+	// Load the input subscriptions
+	for key, value := range c.Subscriptions {
+		subscriptions[key] = value
 	}
 
 	// Load the input sensors, being sure to store the address of the sensor, not the sensor
