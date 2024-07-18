@@ -82,7 +82,7 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	hw.TextStyle = fyne.TextStyle{Italic: true}
 	xpos = ((widgetSizeX / 2) - (hw.MinSize().Width)/2)
 	hw.Move(fyne.NewPos(xpos, 85))
-	hw2 := canvas.NewText("Humidity", color.Black)
+	hw2 := canvas.NewText("humidity", color.Black)
 	hw2.TextSize = 10
 	hw2.TextStyle = fyne.TextStyle{Italic: true}
 	xpos = ((widgetSizeX / 2) - (hw2.MinSize().Width)/2)
@@ -100,7 +100,7 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	lhw := canvas.NewText("Lo "+strconv.FormatFloat(ww.lowHumidity, 'f', 1, 64)+"%", color.RGBA{R: 11, G: 11, B: 243, A: 255})
 	lhw.TextSize = 10
 
-	latestUpdate := canvas.NewText("Latest update:   "+ww.latestUpdate, color.Black)
+	latestUpdate := canvas.NewText("Updated:   "+ww.latestUpdate, color.Black)
 	latestUpdate.TextSize = 12
 
 	r.widget = ww
@@ -178,10 +178,12 @@ func (r *weatherWidgetRenderer) Refresh() {
 		r.lowHumidity.Hide()
 		r.highHumidity.Hide()
 		r.humidity.Hide()
+		r.humidity2.Hide()
 	} else {
 		r.lowHumidity.Show()
 		r.highHumidity.Show()
 		r.humidity.Show()
+		r.humidity2.Show()
 	}
 }
 
