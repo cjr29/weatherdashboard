@@ -138,7 +138,7 @@ func sub(client mqtt.Client) {
 	}
 }
 
-func unsubscribe(client mqtt.Client, msg Subscription) {
+func unsubscribe(client mqtt.Client, msg *Subscription) {
 	client.Unsubscribe(msg.Topic)
 	SetStatus(fmt.Sprintf("Unsubscribed from topic %s", msg.Topic))
 }
@@ -177,7 +177,7 @@ func checkSensor(key string, s map[string]*Sensor) bool {
 }
 
 // checkMessage - Check if message is in message table
-func checkMessage(key int, m map[int]Subscription) bool {
+func checkMessage(key int, m map[int]*Subscription) bool {
 	if _, ok := m[key]; ok {
 		return true
 	}

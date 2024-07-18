@@ -52,7 +52,7 @@ func readConfig() {
 		fmt.Scanln(&m.Station)
 		// Add to subscriptions
 		skey := rand.Int()
-		subscriptions[skey] = m
+		subscriptions[skey] = &m
 	}
 
 	// Disable data logging
@@ -86,6 +86,7 @@ func jsonOutput() (e error) {
 
 	// Declare a configuration structure composed of the structures and maps needed
 	var as = make(map[string]Sensor)
+	var subs = make(map[int]Subscription)
 
 	// retrieve all current active sensors, making sure to dereference the address first!
 	for key := range activeSensors {
@@ -93,9 +94,14 @@ func jsonOutput() (e error) {
 		as[key] = a
 	}
 
+	for key := range subscriptions {
+		s := *subscriptions[key]
+		subs[key] = s
+	}
+
 	c := Configuration{
 		Brokers:       brokers,
-		Subscriptions: subscriptions,
+		Subscriptions: subs,
 		ActiveSensors: as,
 	}
 
@@ -108,10 +114,11 @@ func jsonOutput() (e error) {
 func jsonInput() (e error) {
 	// Declare a configuration structure composed of the structures and maps needed
 	var as map[string]Sensor
+	var subs map[int]Subscription
 
 	c := Configuration{
 		Brokers:       brokers,
-		Subscriptions: subscriptions,
+		Subscriptions: subs,
 		ActiveSensors: as,
 	}
 
@@ -138,7 +145,7 @@ func jsonInput() (e error) {
 
 	// Load the input subscriptions
 	for key, value := range c.Subscriptions {
-		subscriptions[key] = value
+		subscriptions[key] = &value
 	}
 
 	// Load the input sensors, being sure to store the address of the sensor, not the sensor

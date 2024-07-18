@@ -36,7 +36,6 @@ var (
 	statusContainer    *fyne.Container
 	dashboardContainer *fyne.Container
 	dataWindow         fyne.Window
-	topicWindow        fyne.Window
 	dashboardWindow    fyne.Window
 
 	// Allow only one instance of any of these windows to be opened at a time
@@ -67,7 +66,10 @@ func main() {
 	os.Setenv("FYNE_THEME", "light")
 	a = app.NewWithID("github.com/cjr29/weatherdashboard")
 	w := a.NewWindow("Weather Dashboard")
-	w.Resize(fyne.NewSize(640, 460))
+
+	// w.Resize(fyne.NewSize(640, 460))
+	w.Resize(fyne.NewSize(500, 300))
+	a.Settings().Scale()
 
 	// weatherTheme support Light and Dark variants
 	a.Settings().SetTheme(&th)
@@ -111,10 +113,14 @@ func main() {
 		removeActiveSensorItem,
 	)
 
-	listTopicsItem := fyne.NewMenuItem("List", listTopicsHandler)
+	listTopicsItem := fyne.NewMenuItem("List", func() {
+		if !listTopicsFlag {
+			chooseTopics("Current Subscribed Topics", subscriptions, ListTopics)
+		}
+	})
 	addTopicItem := fyne.NewMenuItem("New", addTopicHandler)
 	removeTopicItem := fyne.NewMenuItem("Remove", removeTopicHandler)
-	topicMenu := fyne.NewMenu("Topics", listTopicsItem, addTopicItem, removeTopicItem)
+	subscriptionsMenu := fyne.NewMenu("Subscriptions", listTopicsItem, addTopicItem, removeTopicItem)
 
 	dataDisplayItem := fyne.NewMenuItem("Station Data Live Feed", scrollDataHandler)
 	dashboardItem := fyne.NewMenuItem("Dashboard Widgets", dashboardHandler)
@@ -129,7 +135,7 @@ func main() {
 		toggleDataLoggingOffItem,
 	)
 
-	menu := fyne.NewMainMenu(dataMenu, sensorMenu, topicMenu)
+	menu := fyne.NewMainMenu(dataMenu, sensorMenu, subscriptionsMenu)
 
 	w.SetMainMenu(menu)
 	menu.Refresh()
@@ -163,7 +169,7 @@ func main() {
 	generateWeatherWidgets()
 
 	//**********************************
-	// Set configuration for MQTT, read from config.ini file in local directory
+	// Set configuration for MQTT
 	//**********************************
 	for _, b := range brokers {
 		opts := mqtt.NewClientOptions()

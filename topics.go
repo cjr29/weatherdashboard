@@ -20,7 +20,7 @@ import (
 )
 
 // DisplayTopics - Call this function to display a list of topics in a scrolling window
-func displayTopics(t map[int]Subscription) {
+func displayTopics(t map[int]*Subscription) {
 	TopicDisplay.RemoveAll()
 	header := fmt.Sprintf("Number of Subscribed Topics = %d", len(t))
 	TopicDisplay.Add(&canvas.Text{
@@ -87,7 +87,7 @@ var addTopicHandler = func() {
 			m.Topic = inputT.Text
 			m.Station = inputS.Text
 			key := rand.Int()
-			subscriptions[key] = m
+			subscriptions[key] = &m
 			Client.Subscribe(m.Topic, 0, messageHandler)
 			SetStatus(fmt.Sprintf("Subscribed to Topic: %s", m.Topic))
 			addTopicWindow.Close()
@@ -133,7 +133,7 @@ var removeTopicHandler = func() {
 }
 
 // Create subscription (topic) list
-func buildSubscriptionsList(m map[int]Subscription) []ChoicesIntKey {
+func buildSubscriptionsList(m map[int]*Subscription) []ChoicesIntKey {
 	var list []ChoicesIntKey
 	i := 0
 	for key, message := range m {

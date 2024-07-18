@@ -21,8 +21,10 @@ import (
 )
 
 const (
-	widgetSizeX   float32 = 250
-	widgetSizeY   float32 = 175
+	// widgetSizeX   float32 = 250
+	// widgetSizeY   float32 = 175
+	widgetSizeX   float32 = 200
+	widgetSizeY   float32 = 150
 	widgetPadding float32 = 5 // separation between widgets
 	numColumns            = 5
 	cornerRadius  float32 = 10
@@ -34,6 +36,17 @@ const (
 	// 24h hh:mm:ss: 14:23:20
 	HHMMSS24h = "15:04:05"
 	// 12h hh:mm:ss: 2:23:20 PM
+)
+const (
+	ListActive   Action = iota + 1 // List active sensors with no check box
+	ListAvail                      // List available sensors with no check box
+	Edit                           // Edit selected sensors
+	Add                            // Add selected sensors
+	Remove                         // Remove selected sensors
+	ListTopics                     // List topics with no check box
+	EditTopics                     // Edit selected topics
+	AddTopics                      // Add selected topics
+	RemoveTopics                   // Remove selected topics
 )
 
 //IconNameSettings fyne.ThemeIconName = "settings"
@@ -115,6 +128,7 @@ type Broker struct {
 }
 
 type Subscription struct {
+	Key     int    `json:"Key"`
 	Topic   string `json:"Topic"`
 	Station string `json:"Station"`
 }
@@ -159,7 +173,9 @@ type weatherWidgetRenderer struct {
 	station      *canvas.Text
 	sensorName   *canvas.Text
 	temp         *canvas.Text
+	temp2        *canvas.Text
 	humidity     *canvas.Text
+	humidity2    *canvas.Text
 	highTemp     *canvas.Text
 	lowTemp      *canvas.Text
 	highHumidity *canvas.Text
@@ -173,7 +189,7 @@ var (
 	availableSensors      = make(map[string]*Sensor)        // Visible sensors table, no dups allowed
 	activeSensorsMutex    sync.Mutex                        // Use to lock reads and writes to the map
 	availableSensorsMutex sync.Mutex                        // Use to lock reads and writes to the map
-	subscriptions         = make(map[int]Subscription)      // Topics to be subscribed
+	subscriptions         = make(map[int]*Subscription)     // Topics to be subscribed
 	weatherWidgets        = make(map[string]*weatherWidget) // Key is the Sensor key associated with the WW
 	dataFiles             = make(map[string]DataFile)       // Home:DataFile
 	brokers               = make(map[int]Broker)            // Brokers to connect with

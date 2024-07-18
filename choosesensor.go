@@ -38,14 +38,6 @@ const (
 
 type Action int
 
-const (
-	ListActive Action = iota + 1 // List active sensors with no check box
-	ListAvail                    // List available sensors with no check box
-	Edit                         // Edit selected sensors
-	Add                          // Add selected sensors
-	Remove                       // Remove selected sensors
-)
-
 var (
 	resultKeys                         []string // storage for sensor keys selected by user
 	sensorDisplayWidgetBackgroundColor          = color.RGBA{R: 214, G: 240, B: 246, A: 255}
@@ -221,6 +213,14 @@ func clearSelectedFlag(action Action) {
 	case Remove:
 		removeSensors()
 		removeActiveSensorsFlag = false
+	case ListTopics:
+		listTopicsFlag = false
+	case EditTopics:
+		editTopicsFlag = false
+	case AddTopics:
+		addTopicsFlag = false
+	case RemoveTopics:
+		removeTopicsFlag = false
 	default:
 		return
 	}

@@ -68,13 +68,25 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	st.TextSize = 10
 	st.TextStyle = fyne.TextStyle{Bold: true}
 
-	tw := canvas.NewText(strconv.FormatFloat(ww.temp, 'f', 1, 64), color.Black)
+	tw := canvas.NewText(strconv.FormatFloat(ww.temp, 'f', 1, 64)+"º", color.Black)
 	tw.TextSize = 40
 	tw.TextStyle = fyne.TextStyle{Bold: true}
+	tw2 := canvas.NewText("fahrenheit", color.Black)
+	tw2.TextSize = 10
+	tw2.TextStyle = fyne.TextStyle{Bold: false}
+	xpos := ((widgetSizeX / 2) - (tw2.MinSize().Width)/2)
+	tw2.Move(fyne.NewPos(xpos, 70))
 
-	hw := canvas.NewText("Humidity "+strconv.FormatFloat(ww.humidity, 'f', 1, 64)+"%", color.Black)
+	hw := canvas.NewText(strconv.FormatFloat(ww.humidity, 'f', 1, 64)+"%", color.Black)
 	hw.TextSize = 20
 	hw.TextStyle = fyne.TextStyle{Italic: true}
+	xpos = ((widgetSizeX / 2) - (hw.MinSize().Width)/2)
+	hw.Move(fyne.NewPos(xpos, 85))
+	hw2 := canvas.NewText("Humidity", color.Black)
+	hw2.TextSize = 10
+	hw2.TextStyle = fyne.TextStyle{Italic: true}
+	xpos = ((widgetSizeX / 2) - (hw2.MinSize().Width)/2)
+	hw2.Move(fyne.NewPos(xpos, 110))
 
 	htw := canvas.NewText("Hi "+strconv.FormatFloat(ww.highTemp, 'f', 1, 64), color.RGBA{R: 247, G: 19, B: 2, A: 255})
 	htw.TextSize = 10
@@ -97,12 +109,13 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	r.station = st
 	r.temp = tw
 	r.humidity = hw
+	r.humidity2 = hw2
 	r.highTemp = htw
 	r.lowTemp = ltw
 	r.highHumidity = hhw
 	r.lowHumidity = lhw
 	r.latestUpdate = latestUpdate
-	r.objects = append(r.objects, frame, header, st, tw, hw, htw, ltw, hhw, lhw, latestUpdate)
+	r.objects = append(r.objects, frame, header, st, tw, tw2, hw, hw2, htw, ltw, hhw, lhw, latestUpdate)
 
 	r.widget.ExtendBaseWidget(ww)
 
@@ -118,11 +131,15 @@ func (r *weatherWidgetRenderer) Layout(size fyne.Size) {
 	// Calculate start of sensor name in widget
 	xpos := ((widgetSizeX / 2) - (r.sensorName.MinSize().Width)/2)
 	r.sensorName.Move(fyne.NewPos(xpos, 0))
-	r.station.Move(fyne.NewPos(4, 5))
+	// r.station.Move(fyne.NewPos(4, 5))
+	xpos = widgetSizeX - widgetPadding - r.station.MinSize().Width
+	r.station.Move(fyne.NewPos(xpos, 65))
 	xpos = ((widgetSizeX / 2) - (r.temp.MinSize().Width)/2)
 	r.temp.Move(fyne.NewPos(xpos, 25))
 	xpos = ((widgetSizeX / 2) - (r.humidity.MinSize().Width)/2)
 	r.humidity.Move(fyne.NewPos(xpos, 85))
+	xpos = ((widgetSizeX / 2) - (r.humidity2.MinSize().Width)/2)
+	r.humidity2.Move(fyne.NewPos(xpos, 110))
 	r.highTemp.Move(fyne.NewPos(4, 40))
 	r.lowTemp.Move(fyne.NewPos(4, 55))
 	r.highHumidity.Move(fyne.NewPos(4, 85))
@@ -133,6 +150,7 @@ func (r *weatherWidgetRenderer) Layout(size fyne.Size) {
 		r.humidity.Hide()
 		r.highHumidity.Hide()
 		r.lowHumidity.Hide()
+		r.humidity2.Hide()
 	}
 }
 
@@ -149,13 +167,13 @@ func (r *weatherWidgetRenderer) Refresh() {
 	r.frame.Show()
 	r.sensorName.Text = r.widget.sensorName
 	r.station.Text = r.widget.sensorStation
-	r.temp.Text = strconv.FormatFloat(r.widget.temp, 'f', 1, 64)
-	r.humidity.Text = "Humidity " + strconv.FormatFloat(r.widget.humidity, 'f', 1, 64) + "%"
+	r.temp.Text = strconv.FormatFloat(r.widget.temp, 'f', 1, 64) + "º"
+	r.humidity.Text = strconv.FormatFloat(r.widget.humidity, 'f', 1, 64) + "%"
 	r.highTemp.Text = "Hi " + strconv.FormatFloat(r.widget.highTemp, 'f', 1, 64)
 	r.lowTemp.Text = "Lo " + strconv.FormatFloat(r.widget.lowTemp, 'f', 1, 64)
 	r.highHumidity.Text = "Hi " + strconv.FormatFloat(r.widget.highHumidity, 'f', 1, 64) + "%"
 	r.lowHumidity.Text = "Lo " + strconv.FormatFloat(r.widget.lowHumidity, 'f', 1, 64) + "%"
-	r.latestUpdate.Text = "Latest update:   " + r.widget.latestUpdate
+	r.latestUpdate.Text = "Updated:   " + r.widget.latestUpdate
 	if !r.widget.hasHumidity {
 		r.lowHumidity.Hide()
 		r.highHumidity.Hide()
