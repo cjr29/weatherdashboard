@@ -69,7 +69,7 @@ func main() {
 
 	// w.Resize(fyne.NewSize(640, 460))
 	w.Resize(fyne.NewSize(500, 300))
-	os.Setenv("FYNE_SCALE", "0.8")
+	os.Setenv("FYNE_SCALE", "0.65")
 
 	// weatherTheme support Light and Dark variants
 	a.Settings().SetTheme(&th)
