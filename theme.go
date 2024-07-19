@@ -31,13 +31,17 @@ func (m *weatherTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.C
 			return &color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xAA} // White
 		}
 		return &color.NRGBA{R: 0xF0, G: 0xE9, B: 0x9B, A: 0xFF}
-	case theme.ColorNameButton, theme.ColorNameFocus, theme.ColorNameSelection:
+	case theme.ColorNameFocus, theme.ColorNameSelection:
 		if v == theme.VariantLight {
 			return &color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0x66}
 		}
-		return &color.NRGBA{R: 0xF0, G: 0xE9, B: 0x9B, A: 0xFF}
+		return &color.NRGBA{R: 0xF0, G: 0xE9, B: 0x9B, A: 0xFF} // Yellow
+	case theme.ColorNameButton:
+		if v == theme.VariantLight {
+			return &color.NRGBA{R: 0xff, G: 0xff, B: 0xff, A: 0x66}
+		}
+		return &color.NRGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xFF} // Black
 	}
-
 	return theme.DefaultTheme().Color(n, v)
 }
 

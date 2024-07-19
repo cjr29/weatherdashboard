@@ -65,9 +65,13 @@ func main() {
 	//**********************************
 	// Set up Fyne window before trying to write to Status line!!!
 	//**********************************
-	os.Setenv("FYNE_THEME", "light")
 	a = app.NewWithID("github.com/cjr29/weatherdashboard")
 	a.Preferences().SetFloat("DEFAULT_SCALE", 0.65)
+	a.Preferences().SetString("FYNE_THEME", "dark")
+	// os.Setenv("FYNE_THEME", "light")
+	os.Setenv("FYNE_THEME", a.Preferences().StringWithFallback("FYNE_THEME", "light"))
+	// a = app.NewWithID("github.com/cjr29/weatherdashboard")
+	// a.Preferences().SetFloat("DEFAULT_SCALE", 0.65)
 	w = a.NewWindow("Weather Dashboard")
 
 	// w.Resize(fyne.NewSize(640, 460))
