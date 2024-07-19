@@ -175,3 +175,36 @@ var dataLoggingOffHandler = func() {
 	logdata_flg = false
 	SetStatus("Data logging turned off")
 }
+
+// View handlers
+var zoomPlusHandler = func() {
+	windowScale = windowScale * 1.1
+	scale := strconv.FormatFloat(windowScale, 'f', 1, 32)
+	os.Setenv("FYNE_SCALE", scale)
+	w = a.NewWindow("Weather Dashboard")
+	w.Resize(defaultWindowSize)
+	// weatherTheme support Light and Dark variants
+	a.Settings().SetTheme(&th)
+	// settings.NewSettings().LoadAppearanceScreen(w)
+	w.SetMaster()
+}
+
+var zoomMinusHandler = func() {
+	windowScale = windowScale * 0.9
+	scale := strconv.FormatFloat(windowScale, 'f', 1, 32)
+	os.Setenv("FYNE_SCALE", scale)
+	w = a.NewWindow("Weather Dashboard")
+	w.Resize(defaultWindowSize)
+	// weatherTheme support Light and Dark variants
+	a.Settings().SetTheme(&th)
+	// settings.NewSettings().LoadAppearanceScreen(w)
+	w.SetMaster()
+}
+
+var themeLightHandler = func() {
+	os.Setenv("FYNE_THEME", "light")
+}
+
+var themeDarkHandler = func() {
+	os.Setenv("FYNE_THEME", "dark")
+}

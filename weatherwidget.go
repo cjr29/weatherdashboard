@@ -71,10 +71,12 @@ func newWeatherWidgetRenderer(ww *weatherWidget) fyne.WidgetRenderer {
 	tw := canvas.NewText(strconv.FormatFloat(ww.temp, 'f', 1, 64)+"º", color.Black)
 	tw.TextSize = 40
 	tw.TextStyle = fyne.TextStyle{Bold: true}
+	xpos := ((widgetSizeX / 2) - (tw.MinSize().Width)/2)
+	tw.Move(fyne.NewPos(xpos, 25))
 	tw2 := canvas.NewText("fahrenheit", color.Black)
 	tw2.TextSize = 10
 	tw2.TextStyle = fyne.TextStyle{Bold: false}
-	xpos := ((widgetSizeX / 2) - (tw2.MinSize().Width)/2)
+	xpos = ((widgetSizeX / 2) - (tw2.MinSize().Width)/2)
 	tw2.Move(fyne.NewPos(xpos, 70))
 
 	hw := canvas.NewText(strconv.FormatFloat(ww.humidity, 'f', 1, 64)+"%", color.Black)

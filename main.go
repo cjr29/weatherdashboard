@@ -15,7 +15,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/cmd/fyne_settings/settings"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -23,6 +22,7 @@ import (
 
 var (
 	a               fyne.App
+	w               fyne.Window
 	Client          mqtt.Client
 	status          string
 	Console         = container.NewVBox()
@@ -50,8 +50,10 @@ var (
 	ewwFlag                  bool = false // Edit weather widget flag. If true, window has been initialized
 	// end of window flags
 
-	hideflag    bool = false // Used by hideWidgetHandler DO NOT DELETE!
-	logdata_flg bool = false
+	hideflag          bool      = false // Used by hideWidgetHandler DO NOT DELETE!
+	logdata_flg       bool      = false
+	windowScale       float64   = 1.0
+	defaultWindowSize fyne.Size = fyne.NewSize(500, 300)
 )
 
 /**********************************************************************************
@@ -65,20 +67,25 @@ func main() {
 	//**********************************
 	os.Setenv("FYNE_THEME", "light")
 	a = app.NewWithID("github.com/cjr29/weatherdashboard")
-	w := a.NewWindow("Weather Dashboard")
+	a.Preferences().SetFloat("DEFAULT_SCALE", 0.65)
+	w = a.NewWindow("Weather Dashboard")
 
 	// w.Resize(fyne.NewSize(640, 460))
-	w.Resize(fyne.NewSize(500, 300))
-	os.Setenv("FYNE_SCALE", "0.65")
+	w.Resize(defaultWindowSize)
+	// windowScale = windowScale * .65
+	windowScale = a.Preferences().FloatWithFallback("DEFAULT_SCALE", 1.0)
+	scale := strconv.FormatFloat(windowScale, 'f', 1, 32)
+	os.Setenv("FYNE_SCALE", scale)
 
 	// weatherTheme support Light and Dark variants
 	a.Settings().SetTheme(&th)
-	settings.NewSettings().LoadAppearanceScreen(w)
+	// settings.NewSettings().LoadAppearanceScreen(w)
 	w.SetMaster()
 
 	//**********************************
 	//  Prepare Menus
 	//**********************************
+
 	listActiveSensorsItem := fyne.NewMenuItem("List Active Sensors", func() {
 		if !listActiveSensorsFlag {
 			chooseSensors("Active Sensors", activeSensors, ListActive)
@@ -135,7 +142,18 @@ func main() {
 		toggleDataLoggingOffItem,
 	)
 
-	menu := fyne.NewMainMenu(dataMenu, sensorMenu, subscriptionsMenu)
+	zoomPlusViewItem := fyne.NewMenuItem("Zoom +", zoomPlusHandler)
+	zoomMinusViewItem := fyne.NewMenuItem("Zoom -", zoomMinusHandler)
+	themeLightItem := fyne.NewMenuItem("Light", themeLightHandler)
+	themeDarkItem := fyne.NewMenuItem("Dark", themeDarkHandler)
+	viewMenu := fyne.NewMenu("View",
+		zoomPlusViewItem,
+		zoomMinusViewItem,
+		themeLightItem,
+		themeDarkItem,
+	)
+
+	menu := fyne.NewMainMenu(dataMenu, sensorMenu, subscriptionsMenu, viewMenu)
 
 	w.SetMainMenu(menu)
 	menu.Refresh()
