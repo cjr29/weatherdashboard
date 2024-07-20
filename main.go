@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -148,19 +149,27 @@ func main() {
 
 	zoomPlusViewItem := fyne.NewMenuItem("Zoom +", zoomPlusHandler)
 	zoomMinusViewItem := fyne.NewMenuItem("Zoom -", zoomMinusHandler)
-	themeLightItem := fyne.NewMenuItem("Light", themeLightHandler)
-	themeDarkItem := fyne.NewMenuItem("Dark", themeDarkHandler)
+	// themeLightItem := fyne.NewMenuItem("Light", themeLightHandler)
+	// themeDarkItem := fyne.NewMenuItem("Dark", themeDarkHandler)
 	viewMenu := fyne.NewMenu("View",
 		zoomPlusViewItem,
 		zoomMinusViewItem,
-		themeLightItem,
-		themeDarkItem,
+		// themeLightItem,
+		// themeDarkItem,
 	)
 
 	menu := fyne.NewMainMenu(dataMenu, sensorMenu, subscriptionsMenu, viewMenu)
 
 	w.SetMainMenu(menu)
 	menu.Refresh()
+
+	//*************************************************
+	// Prepare Keyboard Shortcuts
+	//*************************************************
+	ctrlPlus := &desktop.CustomShortcut{KeyName: fyne.KeyPlus, Modifier: fyne.KeyModifierSuper}
+	zoomPlusViewItem.Shortcut = ctrlPlus
+	ctrlMinus := &desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierSuper}
+	zoomMinusViewItem.Shortcut = ctrlMinus
 
 	//*************************************************
 	// Prepare Dashboard Containers
