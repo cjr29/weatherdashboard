@@ -166,9 +166,11 @@ func main() {
 	//*************************************************
 	// Prepare Keyboard Shortcuts
 	//*************************************************
-	ctrlPlus := &desktop.CustomShortcut{KeyName: fyne.KeyPlus, Modifier: fyne.KeyModifierSuper}
+	// ctrlPlus := &desktop.CustomShortcut{KeyName: fyne.KeyPlus, Modifier: fyne.KeyModifierSuper}
+	ctrlPlus := &desktop.CustomShortcut{KeyName: fyne.KeyPlus, Modifier: fyne.KeyModifierShortcutDefault}
 	zoomPlusViewItem.Shortcut = ctrlPlus
-	ctrlMinus := &desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierSuper}
+	// ctrlMinus := &desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierSuper}
+	ctrlMinus := &desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierShortcutDefault}
 	zoomMinusViewItem.Shortcut = ctrlMinus
 
 	//*************************************************
